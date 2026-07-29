@@ -3,30 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Agent Hub — Resource Map Prototype</title>
+  <title>Agent Hub — 个人 AI Agent 控制中心</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23171a1d'/%3E%3Cpath d='M8 8v16M16 8v16M24 8v16M8 16h16' stroke='%236ff0dc' stroke-width='3'/%3E%3C/svg%3E">
   <style>
     :root {
-      --ink: #171a1d;
-      --ink-2: #343a40;
-      --muted: #6d747b;
-      --faint: #959ba1;
-      --canvas: #f1f3f4;
+      --ink: rgba(0, 0, 0, 0.95);
+      --ink-2: #31302e;
+      --muted: #615d59;
+      --faint: #a39e98;
+      --canvas: #f6f5f4;
       --panel: #ffffff;
-      --line: #dfe3e6;
-      --line-soft: #edf0f2;
-      --blue: #2d5bff;
-      --blue-soft: #eef2ff;
-      --teal: #168675;
-      --teal-soft: #e8f5f2;
-      --amber: #b96818;
-      --amber-soft: #fff3e4;
-      --red: #b7443e;
-      --red-soft: #fcedeb;
-      --shadow: 0 10px 30px rgba(20, 28, 36, 0.07);
-      --display: "Bahnschrift SemiCondensed", "Arial Narrow", "Segoe UI", sans-serif;
-      --body: "Aptos", "Segoe UI", system-ui, sans-serif;
-      --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+      --line: #e6e6e6;
+      --line-soft: rgba(0, 0, 0, 0.06);
+      --blue: #0075de;
+      --blue-soft: rgba(0, 117, 222, 0.08);
+      --teal: #2a9d99;
+      --teal-soft: rgba(42, 157, 153, 0.1);
+      --amber: #dd5b00;
+      --amber-soft: rgba(221, 91, 0, 0.09);
+      --red: #dc2626;
+      --red-soft: rgba(220, 38, 38, 0.08);
+      --shadow:
+        rgba(0, 0, 0, 0.04) 0 4px 18px,
+        rgba(0, 0, 0, 0.027) 0 2px 7.85px,
+        rgba(0, 0, 0, 0.02) 0 0.8px 2.93px,
+        rgba(0, 0, 0, 0.01) 0 0.175px 1.04px;
+      --display: "NotionInter", "Inter", -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+      --body: "NotionInter", "Inter", -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
     }
 
     * {
@@ -59,7 +63,7 @@
 
     button:focus-visible,
     input:focus-visible {
-      outline: 3px solid rgba(45, 91, 255, 0.24);
+      outline: 3px solid rgba(0, 117, 222, 0.24);
       outline-offset: 1px;
     }
 
@@ -75,8 +79,9 @@
       align-items: center;
       gap: 10px;
       padding: 0 14px;
-      background: var(--ink);
-      color: #fff;
+      border-bottom: 1px solid var(--line-soft);
+      background: var(--panel);
+      color: var(--ink);
       user-select: none;
       -webkit-app-region: drag;
     }
@@ -93,13 +98,13 @@
       position: absolute;
       inset: 2px 8px 2px 8px;
       border-radius: 2px;
-      background: #6ff0dc;
-      box-shadow: -6px 0 0 #7896ff, 6px 0 0 #fff;
+      background: var(--blue);
+      box-shadow: -6px 0 0 var(--ink), 6px 0 0 var(--faint);
     }
 
     .mark::after {
       inset: 7px 2px;
-      background: var(--ink);
+      background: var(--panel);
       box-shadow: none;
     }
 
@@ -111,8 +116,7 @@
     }
 
     .title-meta {
-      color: #9fa7ae;
-      font-family: var(--mono);
+      color: var(--faint);
       font-size: 11px;
     }
 
@@ -128,14 +132,14 @@
       width: 42px;
       height: 100%;
       border: 0;
-      color: #adb5bd;
+      color: var(--muted);
       background: transparent;
       cursor: pointer;
     }
 
     .window-controls button:hover {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.1);
+      color: var(--ink);
+      background: rgba(0, 0, 0, 0.05);
     }
 
     .shell {
@@ -150,13 +154,12 @@
       flex-direction: column;
       padding: 18px 12px 12px;
       border-right: 1px solid var(--line);
-      background: #f7f8f8;
+      background: var(--canvas);
     }
 
     .side-label {
       margin: 5px 10px 7px;
       color: var(--faint);
-      font-family: var(--mono);
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.11em;
@@ -188,14 +191,13 @@
 
     .nav button.active {
       color: var(--ink);
-      background: #e5e9ec;
+      background: rgba(0, 0, 0, 0.06);
       font-weight: 650;
     }
 
     .nav-icon {
       width: 18px;
       color: var(--muted);
-      font-family: var(--mono);
       font-size: 12px;
       text-align: center;
     }
@@ -208,7 +210,6 @@
     .beta {
       margin-left: auto;
       color: var(--muted);
-      font-family: var(--mono);
       font-size: 10px;
     }
 
@@ -284,13 +285,12 @@
 
     .breadcrumb strong {
       font-family: var(--display);
-      font-size: 18px;
-      letter-spacing: 0.01em;
+      font-size: 20px;
+      letter-spacing: -0.125px;
     }
 
     .breadcrumb span {
       color: var(--faint);
-      font-family: var(--mono);
       font-size: 11px;
     }
 
@@ -324,7 +324,6 @@
       top: 8px;
       right: 8px;
       color: var(--faint);
-      font-family: var(--mono);
       font-size: 10px;
     }
 
@@ -355,7 +354,7 @@
     }
 
     .button.primary:hover {
-      background: #234de2;
+      background: #005bab;
     }
 
     .button.subtle {
@@ -375,7 +374,7 @@
       display: grid;
       grid-template-rows: auto auto minmax(0, 1fr) auto;
       border-right: 1px solid var(--line);
-      background: #fafbfb;
+      background: var(--canvas);
     }
 
     .inventory-head {
@@ -384,19 +383,17 @@
 
     .eyebrow {
       color: var(--blue);
-      font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      letter-spacing: 0.125px;
     }
 
     .inventory-head h1 {
       margin: 5px 0 3px;
       font-family: var(--display);
-      font-size: 27px;
-      line-height: 1;
-      letter-spacing: -0.02em;
+      font-size: 26px;
+      line-height: 1.23;
+      letter-spacing: -0.625px;
     }
 
     .inventory-head p {
@@ -456,7 +453,7 @@
     }
 
     .agent-item.active {
-      border-color: #cad4ff;
+      border-color: rgba(0, 117, 222, 0.18);
       background: var(--blue-soft);
     }
 
@@ -480,7 +477,6 @@
       border-radius: 8px;
       color: var(--ink);
       background: var(--panel);
-      font-family: var(--mono);
       font-size: 11px;
       font-weight: 800;
     }
@@ -502,7 +498,6 @@
       overflow: hidden;
       margin-top: 3px;
       color: var(--muted);
-      font-family: var(--mono);
       font-size: 10px;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -595,15 +590,14 @@
     .agent-title h2 {
       margin: 0;
       font-family: var(--display);
-      font-size: 29px;
-      line-height: 1;
-      letter-spacing: -0.02em;
+      font-size: 26px;
+      line-height: 1.23;
+      letter-spacing: -0.625px;
     }
 
     .agent-subtitle {
       margin-top: 6px;
       color: var(--muted);
-      font-family: var(--mono);
       font-size: 11px;
     }
 
@@ -618,9 +612,7 @@
       padding: 18px 20px 20px;
       border: 1px solid var(--line);
       border-radius: 10px;
-      background:
-        linear-gradient(90deg, rgba(45, 91, 255, 0.02), transparent 46%),
-        var(--panel);
+      background: var(--panel);
       box-shadow: var(--shadow);
     }
 
@@ -658,7 +650,7 @@
       right: 13%;
       left: 13%;
       height: 2px;
-      background: linear-gradient(90deg, var(--teal) 0 68%, var(--line) 68%);
+      background: linear-gradient(90deg, var(--blue) 0 68%, var(--line) 68%);
     }
 
     .route-node {
@@ -678,9 +670,8 @@
       border: 5px solid var(--panel);
       border-radius: 50%;
       color: #fff;
-      background: var(--teal);
-      box-shadow: 0 0 0 1px var(--teal);
-      font-family: var(--mono);
+      background: var(--blue);
+      box-shadow: 0 0 0 1px var(--blue);
       font-size: 9px;
       font-weight: 800;
     }
@@ -700,7 +691,6 @@
       overflow: hidden;
       margin-top: 4px;
       color: var(--muted);
-      font-family: var(--mono);
       font-size: 10px;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -779,7 +769,7 @@
     }
 
     .chip.active {
-      border-color: #cbd5ff;
+      border-color: rgba(0, 117, 222, 0.18);
       color: var(--blue);
       background: var(--blue-soft);
     }
@@ -811,7 +801,6 @@
       min-height: 34px;
       color: var(--faint);
       background: #f8f9fa;
-      font-family: var(--mono);
       font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.07em;
@@ -920,8 +909,7 @@
 
     .evidence small {
       color: var(--faint);
-      font-family: var(--mono);
-      font-size: 9px;
+      font-size: 10px;
     }
 
     .metadata-grid {
@@ -939,10 +927,7 @@
     .metadata-card span {
       display: block;
       color: var(--faint);
-      font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      font-size: 11px;
     }
 
     .metadata-card strong {
@@ -1205,7 +1190,7 @@
     <header class="titlebar">
       <div class="mark" aria-hidden="true"></div>
       <div class="product-name">Agent Hub</div>
-      <div class="title-meta">LOCAL CONTROL PLANE · MVP</div>
+      <div class="title-meta">个人 Agent 控制中心 · MVP</div>
       <div class="window-controls" aria-label="窗口控制">
         <button type="button" aria-label="最小化">—</button>
         <button type="button" aria-label="最大化">□</button>
@@ -1215,26 +1200,26 @@
 
     <div class="shell">
       <aside class="sidebar">
-        <div class="side-label">Control plane</div>
+        <div class="side-label">管理</div>
         <nav class="nav" aria-label="主导航">
           <button class="active" type="button">
-            <span class="nav-icon">A</span><span>Agents</span><span class="nav-count">4</span>
+            <span class="nav-icon">A</span><span>Agent 管理</span><span class="nav-count">4</span>
           </button>
           <button type="button">
-            <span class="nav-icon">R</span><span>Resources</span><span class="nav-count">18</span>
+            <span class="nav-icon">R</span><span>资源索引</span><span class="nav-count">18</span>
           </button>
           <button type="button">
-            <span class="nav-icon">W</span><span>Workspaces</span><span class="beta">Soon</span>
+            <span class="nav-icon">W</span><span>工作空间</span><span class="beta">后续</span>
           </button>
         </nav>
 
-        <div class="side-label" style="margin-top: 22px;">System</div>
+        <div class="side-label" style="margin-top: 22px;">系统</div>
         <nav class="nav" aria-label="系统导航">
           <button type="button">
-            <span class="nav-icon">S</span><span>Settings</span>
+            <span class="nav-icon">S</span><span>设置</span>
           </button>
           <button type="button">
-            <span class="nav-icon">D</span><span>Diagnostics</span>
+            <span class="nav-icon">D</span><span>诊断</span>
           </button>
         </nav>
 
@@ -1244,15 +1229,15 @@
         </div>
         <div class="service-status">
           <i class="status-dot"></i>
-          <span>SQLite ready · 2 分钟前扫描</span>
+          <span>SQLite 正常 · 2 分钟前扫描</span>
         </div>
       </aside>
 
       <main class="main">
         <div class="commandbar">
           <div class="breadcrumb">
-            <strong>Agents</strong>
-            <span>/ local inventory</span>
+            <strong>Agent 管理</strong>
+            <span>/ 本地清单</span>
           </div>
           <label class="global-search">
             <input id="globalSearch" type="search" placeholder="搜索 Agent、资源或路径">
@@ -1264,7 +1249,7 @@
         <div class="workspace">
           <section class="inventory" aria-label="Agent 列表">
             <header class="inventory-head">
-              <div class="eyebrow">Local inventory</div>
+              <div class="eyebrow">本地 Agent 清单</div>
               <h1>4 个 Agent</h1>
               <p>2 正常 · 1 待确认 · 1 路径失效</p>
             </header>
@@ -1289,7 +1274,7 @@
                 <div class="agent-title">
                   <div class="agent-title-line">
                     <h2 id="detailName">Claude Code</h2>
-                    <span class="state" id="detailState">Ready</span>
+                    <span class="state" id="detailState">正常</span>
                   </div>
                   <div class="agent-subtitle" id="detailSubtitle">Anthropic · v1.0.62 · 2 分钟前发现</div>
                 </div>
@@ -1301,32 +1286,32 @@
 
               <section class="route-card">
                 <div class="section-head">
-                  <h3>Resource route</h3>
+                  <h3>资源关系</h3>
                   <span id="routeHint">3/3 节点已验证</span>
                 </div>
                 <div class="route">
                   <div class="route-node">
-                    <div class="node-dot" id="runtimeDot">EXE</div>
-                    <div class="node-label">Runtime</div>
-                    <div class="node-value" id="runtimeValue">claude.exe · verified</div>
+                    <div class="node-dot" id="runtimeDot">程序</div>
+                    <div class="node-label">Agent 程序</div>
+                    <div class="node-value" id="runtimeValue">claude.exe · 已验证</div>
                   </div>
                   <div class="route-node">
-                    <div class="node-dot" id="configDot">DIR</div>
-                    <div class="node-label">Config root</div>
+                    <div class="node-dot" id="configDot">目录</div>
+                    <div class="node-label">配置目录</div>
                     <div class="node-value" id="configValue">~/.claude/</div>
                   </div>
                   <div class="route-node">
                     <div class="node-dot" id="resourceDot">18</div>
-                    <div class="node-label">Resources</div>
-                    <div class="node-value" id="resourceValue">6 managed · 12 observed</div>
+                    <div class="node-label">已发现资源</div>
+                    <div class="node-value" id="resourceValue">6 个核心资源 · 12 个已发现</div>
                   </div>
                 </div>
               </section>
 
               <div class="tabs" role="tablist" aria-label="Agent 详情">
-                <button class="tab active" type="button" data-tab="resources" role="tab">Resource map</button>
-                <button class="tab" type="button" data-tab="evidence" role="tab">Discovery evidence</button>
-                <button class="tab" type="button" data-tab="metadata" role="tab">Metadata</button>
+                <button class="tab active" type="button" data-tab="resources" role="tab">资源清单</button>
+                <button class="tab" type="button" data-tab="evidence" role="tab">发现依据</button>
+                <button class="tab" type="button" data-tab="metadata" role="tab">基本信息</button>
               </div>
 
               <section class="tab-panel active" id="panel-resources">
@@ -1334,8 +1319,8 @@
                   <div class="resource-summary"><strong id="resourceCount">6</strong> 个核心资源</div>
                   <div class="chips" aria-label="资源类型筛选">
                     <button class="chip active" type="button">全部</button>
-                    <button class="chip" type="button">Config</button>
-                    <button class="chip" type="button">Prompt</button>
+                    <button class="chip" type="button">配置</button>
+                    <button class="chip" type="button">提示词</button>
                     <button class="chip" type="button">Skill</button>
                     <button class="chip" type="button">MCP</button>
                   </div>
@@ -1379,7 +1364,7 @@
         <strong>✓</strong>
         <div>
           <strong>识别为 Hermes</strong>
-          <span>发现 config.yaml 和 memories/；未确认 hermes 可执行文件，将以 Config only 状态添加。</span>
+          <span>发现 config.yaml 和 memories/；未确认 Hermes 可执行文件，将以“仅发现配置”状态添加。</span>
         </div>
       </div>
 
@@ -1403,30 +1388,30 @@
           version: "v1.0.62",
           path: "~/.claude/",
           state: "ready",
-          stateLabel: "Ready",
+          stateLabel: "正常",
           lastSeen: "2 分钟前",
-          runtime: "claude.exe · verified",
+          runtime: "claude.exe · 已验证",
           routeHint: "3/3 节点已验证",
-          resourceValue: "6 managed · 12 observed",
+          resourceValue: "6 个核心资源 · 12 个已发现",
           resources: [
-            ["MD", "CLAUDE.md", "全局指令", "Prompt", "Global", "Safe", "2 小时前"],
-            ["JS", "settings.json", "主配置", "Config", "Global", "Sensitive", "昨天"],
-            ["JS", "mcp.json", "MCP 服务定义", "MCP", "Global", "Sensitive", "3 天前"],
-            ["DR", "skills/", "3 个 Skill", "Skill", "Global", "Safe", "昨天"],
-            ["DR", "agents/", "1 个子 Agent", "Agent", "Global", "Safe", "5 天前"],
-            ["JS", ".claude.json", "用户级状态", "Config", "User", "Sensitive", "刚刚"]
+            ["MD", "CLAUDE.md", "全局指令", "提示词", "全局", "Safe", "2 小时前"],
+            ["JS", "settings.json", "主配置", "配置", "全局", "Sensitive", "昨天"],
+            ["JS", "mcp.json", "MCP 服务定义", "MCP", "全局", "Sensitive", "3 天前"],
+            ["DR", "skills/", "3 个 Skill", "Skill", "全局", "Safe", "昨天"],
+            ["DR", "agents/", "1 个子 Agent", "子 Agent", "全局", "Safe", "5 天前"],
+            ["JS", ".claude.json", "用户级状态", "配置", "用户", "Sensitive", "刚刚"]
           ],
           evidence: [
-            ["默认配置目录", "~/.claude/", "default rule"],
-            ["核心特征文件", "settings.json · CLAUDE.md", "2 matches"],
+            ["默认配置目录", "~/.claude/", "默认规则"],
+            ["核心特征文件", "settings.json · CLAUDE.md", "匹配 2 项"],
             ["可执行文件", "C:\\Users\\dev\\AppData\\Roaming\\npm\\claude.cmd", "PATH"],
             ["版本检测", "claude --version → 1.0.62", "312 ms"]
           ],
           metadata: [
-            ["Adapter", "claude-code@1"],
-            ["Discovery source", "Default path + PATH"],
-            ["Confidence", "High"],
-            ["Instance ID", "agt_01JCCLAUDE"]
+            ["适配器", "claude-code@1"],
+            ["发现来源", "默认路径 + PATH"],
+            ["可信度", "高"],
+            ["实例 ID", "agt_01JCCLAUDE"]
           ]
         },
         {
@@ -1437,29 +1422,29 @@
           version: "v0.31.0",
           path: "~/.codex/",
           state: "changed",
-          stateLabel: "Changed",
+          stateLabel: "有变化",
           lastSeen: "8 分钟前",
-          runtime: "codex.exe · verified",
+          runtime: "codex.exe · 已验证",
           routeHint: "检测到 1 项外部变化",
-          resourceValue: "5 managed · 9 observed",
+          resourceValue: "5 个核心资源 · 9 个已发现",
           resources: [
-            ["TM", "config.toml", "主配置", "Config", "Global", "Safe", "1 分钟前"],
-            ["JS", "auth.json", "认证状态", "Config", "Global", "Sensitive", "昨天"],
-            ["MD", "AGENTS.md", "全局指令", "Prompt", "Global", "Safe", "4 小时前"],
-            ["DR", "skills/", "4 个 Skill", "Skill", "Global", "Safe", "2 天前"],
-            ["DR", "sessions/", "会话索引", "Session", "Global", "Sensitive", "刚刚"]
+            ["TM", "config.toml", "主配置", "配置", "全局", "Safe", "1 分钟前"],
+            ["JS", "auth.json", "认证状态", "配置", "全局", "Sensitive", "昨天"],
+            ["MD", "AGENTS.md", "全局指令", "提示词", "全局", "Safe", "4 小时前"],
+            ["DR", "skills/", "4 个 Skill", "Skill", "全局", "Safe", "2 天前"],
+            ["DR", "sessions/", "会话索引", "会话", "全局", "Sensitive", "刚刚"]
           ],
           evidence: [
-            ["默认配置目录", "~/.codex/", "default rule"],
-            ["核心特征文件", "config.toml · auth.json", "2 matches"],
+            ["默认配置目录", "~/.codex/", "默认规则"],
+            ["核心特征文件", "config.toml · auth.json", "匹配 2 项"],
             ["可执行文件", "C:\\Program Files\\Codex\\codex.exe", "PATH"],
-            ["文件观察", "config.toml 哈希已变化", "external"]
+            ["文件观察", "config.toml 哈希已变化", "外部修改"]
           ],
           metadata: [
-            ["Adapter", "codex@1"],
-            ["Discovery source", "Default path + PATH"],
-            ["Confidence", "High"],
-            ["Instance ID", "agt_01JCCODEX"]
+            ["适配器", "codex@1"],
+            ["发现来源", "默认路径 + PATH"],
+            ["可信度", "高"],
+            ["实例 ID", "agt_01JCCODEX"]
           ]
         },
         {
@@ -1470,47 +1455,47 @@
           version: "版本未确认",
           path: "~/.hermes/",
           state: "partial",
-          stateLabel: "Config only",
+          stateLabel: "仅发现配置",
           lastSeen: "12 分钟前",
-          runtime: "not found in PATH",
+          runtime: "未在 PATH 中找到",
           routeHint: "2/3 节点已验证",
-          resourceValue: "4 managed · 7 observed",
+          resourceValue: "4 个核心资源 · 7 个已发现",
           resources: [
-            ["YM", "config.yaml", "主配置", "Config", "Global", "Sensitive", "昨天"],
-            ["MD", "memories/MEMORY.md", "长期记忆", "Memory", "Global", "Sensitive", "3 小时前"],
-            ["MD", "memories/USER.md", "用户偏好", "Identity", "Global", "Sensitive", "3 小时前"],
-            ["DR", "skills/", "2 个 Skill", "Skill", "Global", "Safe", "4 天前"]
+            ["YM", "config.yaml", "主配置", "配置", "全局", "Sensitive", "昨天"],
+            ["MD", "memories/MEMORY.md", "长期记忆", "记忆", "全局", "Sensitive", "3 小时前"],
+            ["MD", "memories/USER.md", "用户偏好", "身份", "全局", "Sensitive", "3 小时前"],
+            ["DR", "skills/", "2 个 Skill", "Skill", "全局", "Safe", "4 天前"]
           ],
           evidence: [
             ["默认配置目录", "~/.hermes/", "legacy rule"],
-            ["核心特征文件", "config.yaml · memories/", "2 matches"],
-            ["可执行文件", "未在 PATH 中找到", "not found"],
+            ["核心特征文件", "config.yaml · memories/", "匹配 2 项"],
+            ["可执行文件", "未在 PATH 中找到", "未找到"],
             ["检测结论", "保留为 configuration-only Instance", "medium"]
           ],
           metadata: [
-            ["Adapter", "hermes@1"],
-            ["Discovery source", "Legacy default path"],
-            ["Confidence", "Medium"],
-            ["Instance ID", "agt_01JCHERMES"]
+            ["适配器", "hermes@1"],
+            ["发现来源", "兼容默认路径"],
+            ["可信度", "中"],
+            ["实例 ID", "agt_01JCHERMES"]
           ]
         },
         {
           id: "kimi",
           logo: "KC",
           name: "Kimi Code",
-          vendor: "Manual",
+          vendor: "手动添加",
           version: "v0.7.2",
           path: "~/.config/kimi-code/",
           state: "missing",
-          stateLabel: "Missing",
+          stateLabel: "路径失效",
           lastSeen: "2 天前",
-          runtime: "kimi · last verified 2 days ago",
+          runtime: "kimi · 2 天前最后验证",
           routeHint: "配置根路径不存在",
-          resourceValue: "0 current · 3 retained",
+          resourceValue: "0 个当前资源 · 3 个历史记录",
           resources: [
-            ["JS", "config.json", "历史主配置", "Config", "Global", "Safe", "2 天前"],
-            ["MD", "AGENTS.md", "历史指令", "Prompt", "Global", "Safe", "2 天前"],
-            ["DR", "skills/", "历史 Skill", "Skill", "Global", "Safe", "2 天前"]
+            ["JS", "config.json", "历史主配置", "配置", "全局", "Safe", "2 天前"],
+            ["MD", "AGENTS.md", "历史指令", "提示词", "全局", "Safe", "2 天前"],
+            ["DR", "skills/", "历史 Skill", "Skill", "全局", "Safe", "2 天前"]
           ],
           evidence: [
             ["手动添加", "~/.config/kimi-code/", "manual"],
@@ -1519,10 +1504,10 @@
             ["建议操作", "重新定位路径或停用记录", "action"]
           ],
           metadata: [
-            ["Adapter", "generic-agent@1"],
-            ["Discovery source", "Manual"],
-            ["Confidence", "Low"],
-            ["Instance ID", "agt_01JCKIMI"]
+            ["适配器", "generic-agent@1"],
+            ["发现来源", "手动添加"],
+            ["可信度", "低"],
+            ["实例 ID", "agt_01JCKIMI"]
           ]
         }
       ];
@@ -1588,7 +1573,7 @@
 
         const header = document.createElement("div");
         header.className = "resource-row resource-header";
-        ["", "Resource", "Kind", "Scope", "Status", "Action"].forEach((text) => {
+        ["", "资源", "类型", "范围", "状态", "操作"].forEach((text) => {
           const cell = document.createElement("span");
           cell.textContent = text;
           header.appendChild(cell);
@@ -1621,14 +1606,14 @@
 
           const risk = document.createElement("span");
           risk.className = "risk" + (resource[5] === "Sensitive" ? " sensitive" : "");
-          risk.textContent = resource[5] === "Sensitive" ? "Sensitive" : "Observed";
+          risk.textContent = resource[5] === "Sensitive" ? "含敏感信息" : "已发现";
           risk.title = "修改于 " + resource[6];
 
           const open = document.createElement("button");
           open.type = "button";
           open.className = "open-link";
           open.textContent = "打开 ↗";
-          open.addEventListener("click", () => showToast("将通过 Resource ID 打开 " + resource[1]));
+          open.addEventListener("click", () => showToast("将通过资源 ID 打开 " + resource[1]));
 
           row.append(icon, name, kind, scope, risk, open);
           table.appendChild(row);
@@ -1646,7 +1631,7 @@
 
           const check = document.createElement("span");
           check.className = "evidence-check";
-          check.textContent = item[2] === "failed" || item[2] === "not found" ? "!" : "✓";
+          check.textContent = item[2] === "failed" || item[2] === "not found" || item[2] === "未找到" ? "!" : "✓";
 
           const name = document.createElement("strong");
           name.textContent = item[0];
@@ -1773,7 +1758,7 @@
         showToast("将通过 Agent ID 打开 " + selectedAgent().path);
       });
       document.getElementById("openConfig").addEventListener("click", () => {
-        showToast("将通过主配置 Resource ID 打开文件");
+        showToast("将通过主配置资源 ID 打开文件");
       });
       document.getElementById("reviewChange").addEventListener("click", () => {
         showToast("生产版本将在这里显示结构差异，不展示敏感值");

@@ -34,6 +34,7 @@ Agent Type
 ## 文档与原型
 
 - [完整实施方案](docs/implementation-plan.md)
+- [UI 设计规范](docs/design-system.md)
 - [原型评审与设计决策](docs/prototype-review.md)
 - [交互原型 v2](prototype/agent-hub-prototype-v2.html)
 

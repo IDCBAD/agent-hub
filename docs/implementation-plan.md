@@ -109,7 +109,7 @@ SQLite         Agent Adapters
 ### 3.1 前端职责
 
 - Agent 列表、搜索、筛选和选中状态
-- Resource Map、发现证据和错误展示
+- 资源清单、发现依据和错误展示
 - 发起扫描、打开目录、打开资源等用例
 - 编辑名称、标签和备注
 - 对高风险操作展示预览和确认
@@ -460,17 +460,25 @@ MVP 默认行为：
 
 ## 9. 前端信息架构
 
+所有界面遵循 [`docs/design-system.md`](design-system.md)：
+
+- Notion 风格的暖纸背景、白色表面和单一蓝色结构强调色
+- `NotionInter / Inter / 系统无衬线` 字体体系
+- 默认简体中文
+- Agent、Skill、MCP、SQLite、PATH 等必要技术名词可以保留英文
+- 内部状态码与用户展示文案分离，为后续多语言预留 i18n key
+
 ### 9.1 MVP 导航
 
 ```text
-Agents
-Resources
-Settings
+Agent 管理
+资源索引
+设置
 ```
 
 Workspaces 可以显示为预览入口，但不在第一里程碑实现完整管理。
 
-### 9.2 Agents 工作台
+### 9.2 Agent 管理工作台
 
 左侧：
 
@@ -482,12 +490,12 @@ Workspaces 可以显示为预览入口，但不在第一里程碑实现完整管
 右侧：
 
 - Agent 状态与操作
-- Resource Route
-- Resource Map
-- Discovery Evidence
-- Metadata
+- 资源关系
+- 资源清单
+- 发现依据
+- 基本信息
 
-### 9.3 Resources
+### 9.3 资源索引
 
 提供跨 Agent 的只读资源索引：
 
@@ -495,7 +503,7 @@ Workspaces 可以显示为预览入口，但不在第一里程碑实现完整管
 - 显示路径、修改时间、敏感标记
 - 打开资源
 
-### 9.4 Settings
+### 9.4 设置
 
 - 扫描路径
 - 忽略规则
@@ -634,7 +642,7 @@ external-change
 1. Resource inventory。
 2. JSON/JSONC/TOML/YAML/Markdown 格式识别。
 3. 脱敏结构摘要。
-4. Resource Route 与资源表。
+4. 资源关系与资源表。
 5. 打开目录和资源。
 6. Agent 元数据编辑。
 
