@@ -1,0 +1,26 @@
+# Dependencies and build output
+node_modules/
+dist/
+target/
+src-tauri/target/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local database and runtime state
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Browser review artifacts
+.playwright-cli/
+output/

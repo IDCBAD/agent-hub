@@ -1,0 +1,1787 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Hub — Resource Map Prototype</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23171a1d'/%3E%3Cpath d='M8 8v16M16 8v16M24 8v16M8 16h16' stroke='%236ff0dc' stroke-width='3'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --ink: #171a1d;
+      --ink-2: #343a40;
+      --muted: #6d747b;
+      --faint: #959ba1;
+      --canvas: #f1f3f4;
+      --panel: #ffffff;
+      --line: #dfe3e6;
+      --line-soft: #edf0f2;
+      --blue: #2d5bff;
+      --blue-soft: #eef2ff;
+      --teal: #168675;
+      --teal-soft: #e8f5f2;
+      --amber: #b96818;
+      --amber-soft: #fff3e4;
+      --red: #b7443e;
+      --red-soft: #fcedeb;
+      --shadow: 0 10px 30px rgba(20, 28, 36, 0.07);
+      --display: "Bahnschrift SemiCondensed", "Arial Narrow", "Segoe UI", sans-serif;
+      --body: "Aptos", "Segoe UI", system-ui, sans-serif;
+      --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      overflow: hidden;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: var(--body);
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid rgba(45, 91, 255, 0.24);
+      outline-offset: 1px;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 40px minmax(0, 1fr);
+      background: var(--panel);
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      background: var(--ink);
+      color: #fff;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+
+    .mark {
+      position: relative;
+      width: 18px;
+      height: 18px;
+    }
+
+    .mark::before,
+    .mark::after {
+      content: "";
+      position: absolute;
+      inset: 2px 8px 2px 8px;
+      border-radius: 2px;
+      background: #6ff0dc;
+      box-shadow: -6px 0 0 #7896ff, 6px 0 0 #fff;
+    }
+
+    .mark::after {
+      inset: 7px 2px;
+      background: var(--ink);
+      box-shadow: none;
+    }
+
+    .product-name {
+      font-family: var(--display);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .title-meta {
+      color: #9fa7ae;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .window-controls {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      margin-left: auto;
+      -webkit-app-region: no-drag;
+    }
+
+    .window-controls button {
+      width: 42px;
+      height: 100%;
+      border: 0;
+      color: #adb5bd;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .window-controls button:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .shell {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 218px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 12px 12px;
+      border-right: 1px solid var(--line);
+      background: #f7f8f8;
+    }
+
+    .side-label {
+      margin: 5px 10px 7px;
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .nav {
+      display: grid;
+      gap: 3px;
+    }
+
+    .nav button {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 7px;
+      color: var(--ink-2);
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .nav button:hover {
+      background: #eceff1;
+    }
+
+    .nav button.active {
+      color: var(--ink);
+      background: #e5e9ec;
+      font-weight: 650;
+    }
+
+    .nav-icon {
+      width: 18px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .nav button.active .nav-icon {
+      color: var(--blue);
+    }
+
+    .nav-count,
+    .beta {
+      margin-left: auto;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .beta {
+      padding: 2px 5px;
+      border: 1px solid #ced4d9;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .side-note {
+      margin-top: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .side-note strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+
+    .side-note p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .service-status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 12px;
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 0 3px var(--teal-soft);
+    }
+
+    .main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 58px minmax(0, 1fr);
+      background: var(--panel);
+    }
+
+    .commandbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .breadcrumb strong {
+      font-family: var(--display);
+      font-size: 18px;
+      letter-spacing: 0.01em;
+    }
+
+    .breadcrumb span {
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .global-search {
+      position: relative;
+      width: min(420px, 38vw);
+      margin-left: auto;
+    }
+
+    .global-search input {
+      width: 100%;
+      height: 34px;
+      padding: 0 70px 0 34px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--ink);
+      background: #f8f9fa;
+    }
+
+    .global-search::before {
+      content: "⌕";
+      position: absolute;
+      top: 7px;
+      left: 11px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .shortcut {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .button {
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--ink-2);
+      background: var(--panel);
+      font-weight: 620;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      border-color: #c7cdd2;
+      background: #f8f9fa;
+    }
+
+    .button.primary {
+      border-color: var(--blue);
+      color: #fff;
+      background: var(--blue);
+    }
+
+    .button.primary:hover {
+      background: #234de2;
+    }
+
+    .button.subtle {
+      border-color: transparent;
+      background: #f0f2f3;
+    }
+
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 334px minmax(0, 1fr);
+    }
+
+    .inventory {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      border-right: 1px solid var(--line);
+      background: #fafbfb;
+    }
+
+    .inventory-head {
+      padding: 20px 18px 12px;
+    }
+
+    .eyebrow {
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .inventory-head h1 {
+      margin: 5px 0 3px;
+      font-family: var(--display);
+      font-size: 27px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .inventory-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .inventory-tools {
+      display: flex;
+      gap: 7px;
+      padding: 0 18px 12px;
+    }
+
+    .filter-input {
+      min-width: 0;
+      flex: 1;
+      height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+
+    .filter-button {
+      width: 34px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      cursor: pointer;
+    }
+
+    .agent-list {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 10px 12px;
+    }
+
+    .agent-item {
+      position: relative;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 9px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .agent-item:hover {
+      background: #f0f2f3;
+    }
+
+    .agent-item.active {
+      border-color: #cad4ff;
+      background: var(--blue-soft);
+    }
+
+    .agent-item.active::before {
+      content: "";
+      position: absolute;
+      top: 11px;
+      bottom: 11px;
+      left: -1px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--blue);
+    }
+
+    .agent-logo {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: var(--panel);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .agent-copy {
+      min-width: 0;
+    }
+
+    .agent-name {
+      display: block;
+      overflow: hidden;
+      font-weight: 680;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agent-meta {
+      display: block;
+      overflow: hidden;
+      margin-top: 3px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .state {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .state::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .state.changed {
+      color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .state.partial {
+      color: #58616a;
+      background: #edf0f2;
+    }
+
+    .state.missing {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .inventory-foot {
+      display: flex;
+      gap: 8px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .inventory-foot .button {
+      flex: 1;
+    }
+
+    .inspector {
+      min-width: 0;
+      min-height: 0;
+      overflow-y: auto;
+      background: var(--panel);
+    }
+
+    .inspector-inner {
+      width: min(100%, 1060px);
+      padding: 26px 30px 48px;
+    }
+
+    .agent-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .agent-head .agent-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 11px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(28, 35, 42, 0.05);
+    }
+
+    .agent-title {
+      min-width: 0;
+    }
+
+    .agent-title-line {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .agent-title h2 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 29px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .agent-subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .head-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .route-card {
+      margin-top: 24px;
+      padding: 18px 20px 20px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background:
+        linear-gradient(90deg, rgba(45, 91, 255, 0.02), transparent 46%),
+        var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 17px;
+      letter-spacing: 0.01em;
+    }
+
+    .section-head span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .route {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1.15fr 0.95fr;
+      gap: 48px;
+      margin-top: 20px;
+    }
+
+    .route::before {
+      content: "";
+      position: absolute;
+      top: 16px;
+      right: 13%;
+      left: 13%;
+      height: 2px;
+      background: linear-gradient(90deg, var(--teal) 0 68%, var(--line) 68%);
+    }
+
+    .route-node {
+      position: relative;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .node-dot {
+      position: relative;
+      z-index: 1;
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto;
+      border: 5px solid var(--panel);
+      border-radius: 50%;
+      color: #fff;
+      background: var(--teal);
+      box-shadow: 0 0 0 1px var(--teal);
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .node-dot.changed {
+      background: var(--amber);
+      box-shadow: 0 0 0 1px var(--amber);
+    }
+
+    .node-label {
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .node-value {
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 22px;
+      margin-top: 26px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      position: relative;
+      padding: 0 1px 10px;
+      border: 0;
+      color: var(--muted);
+      background: transparent;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: var(--ink);
+    }
+
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      background: var(--blue);
+    }
+
+    .tab-panel {
+      display: none;
+      padding-top: 18px;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .resource-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .resource-summary {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .resource-summary strong {
+      color: var(--ink);
+    }
+
+    .chips {
+      display: flex;
+      gap: 5px;
+      margin-left: auto;
+    }
+
+    .chip {
+      padding: 4px 7px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      color: var(--muted);
+      background: var(--panel);
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .chip.active {
+      border-color: #cbd5ff;
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .resource-table {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+    }
+
+    .resource-row {
+      display: grid;
+      grid-template-columns: 30px minmax(190px, 1.4fr) 90px 92px minmax(110px, 0.8fr) 82px;
+      align-items: center;
+      min-height: 48px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .resource-row:last-child {
+      border-bottom: 0;
+    }
+
+    .resource-row:hover:not(.resource-header) {
+      background: #fafbfc;
+    }
+
+    .resource-header {
+      min-height: 34px;
+      color: var(--faint);
+      background: #f8f9fa;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .file-icon {
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .resource-name {
+      min-width: 0;
+    }
+
+    .resource-name strong {
+      display: block;
+      overflow: hidden;
+      font-family: var(--mono);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .resource-name span {
+      display: block;
+      overflow: hidden;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .kind {
+      color: var(--ink-2);
+      font-size: 11px;
+    }
+
+    .scope,
+    .modified {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .risk {
+      display: inline-flex;
+      width: max-content;
+      padding: 3px 6px;
+      border-radius: 4px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .risk.sensitive {
+      color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .open-link {
+      justify-self: end;
+      border: 0;
+      color: var(--blue);
+      background: transparent;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .evidence-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .evidence {
+      display: grid;
+      grid-template-columns: 24px 150px minmax(0, 1fr) auto;
+      align-items: center;
+      min-height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .evidence-check {
+      color: var(--teal);
+      font-weight: 800;
+    }
+
+    .evidence strong {
+      font-size: 12px;
+    }
+
+    .evidence code {
+      overflow: hidden;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .evidence small {
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metadata-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .metadata-card span {
+      display: block;
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .metadata-card strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 12px;
+    }
+
+    .change-notice {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 11px 13px;
+      border: 1px solid #f0d2aa;
+      border-radius: 8px;
+      color: #75420e;
+      background: var(--amber-soft);
+      font-size: 11px;
+    }
+
+    .change-notice.show {
+      display: flex;
+    }
+
+    .change-notice button {
+      margin-left: auto;
+      border: 0;
+      color: #75420e;
+      background: transparent;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .modal-mask {
+      position: fixed;
+      z-index: 10;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(20, 24, 28, 0.46);
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-mask.show {
+      display: flex;
+    }
+
+    .modal {
+      width: min(520px, 100%);
+      padding: 22px;
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 24px 70px rgba(11, 15, 18, 0.24);
+    }
+
+    .modal h3 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 23px;
+    }
+
+    .modal > p {
+      margin: 6px 0 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-top: 13px;
+    }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .field input {
+      height: 38px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .detect-preview {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+      padding: 12px;
+      border: 1px solid #cde6df;
+      border-radius: 8px;
+      background: var(--teal-soft);
+    }
+
+    .detect-preview strong {
+      display: block;
+      font-size: 12px;
+    }
+
+    .detect-preview span {
+      display: block;
+      margin-top: 3px;
+      color: #42645e;
+      font-size: 10px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 20;
+      right: 22px;
+      bottom: 22px;
+      max-width: 420px;
+      padding: 12px 15px;
+      border: 1px solid #334047;
+      border-radius: 8px;
+      color: #fff;
+      background: #20262a;
+      box-shadow: 0 12px 34px rgba(15, 19, 22, 0.22);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: 160ms ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1080px) {
+      .shell {
+        grid-template-columns: 68px minmax(0, 1fr);
+      }
+
+      .sidebar {
+        align-items: center;
+        padding-inline: 8px;
+      }
+
+      .side-label,
+      .nav button span:not(.nav-icon),
+      .nav-count,
+      .beta,
+      .side-note,
+      .service-status span {
+        display: none;
+      }
+
+      .nav button {
+        width: 42px;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .workspace {
+        grid-template-columns: 290px minmax(0, 1fr);
+      }
+
+      .resource-row {
+        grid-template-columns: 28px minmax(170px, 1.4fr) 80px 70px 70px;
+      }
+
+      .resource-row > :nth-child(5) {
+        display: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        min-height: 100vh;
+        height: auto;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .main {
+        min-height: calc(100vh - 40px);
+      }
+
+      .commandbar {
+        padding-inline: 14px;
+      }
+
+      .global-search {
+        display: none;
+      }
+
+      .workspace {
+        display: block;
+      }
+
+      .inventory {
+        min-height: 380px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .agent-list {
+        max-height: 260px;
+      }
+
+      .inspector-inner {
+        padding: 22px 16px 40px;
+      }
+
+      .head-actions {
+        display: none;
+      }
+
+      .route {
+        gap: 16px;
+      }
+
+      .resource-table {
+        overflow-x: auto;
+      }
+
+      .resource-row {
+        min-width: 670px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="titlebar">
+      <div class="mark" aria-hidden="true"></div>
+      <div class="product-name">Agent Hub</div>
+      <div class="title-meta">LOCAL CONTROL PLANE · MVP</div>
+      <div class="window-controls" aria-label="窗口控制">
+        <button type="button" aria-label="最小化">—</button>
+        <button type="button" aria-label="最大化">□</button>
+        <button type="button" aria-label="关闭">×</button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="side-label">Control plane</div>
+        <nav class="nav" aria-label="主导航">
+          <button class="active" type="button">
+            <span class="nav-icon">A</span><span>Agents</span><span class="nav-count">4</span>
+          </button>
+          <button type="button">
+            <span class="nav-icon">R</span><span>Resources</span><span class="nav-count">18</span>
+          </button>
+          <button type="button">
+            <span class="nav-icon">W</span><span>Workspaces</span><span class="beta">Soon</span>
+          </button>
+        </nav>
+
+        <div class="side-label" style="margin-top: 22px;">System</div>
+        <nav class="nav" aria-label="系统导航">
+          <button type="button">
+            <span class="nav-icon">S</span><span>Settings</span>
+          </button>
+          <button type="button">
+            <span class="nav-icon">D</span><span>Diagnostics</span>
+          </button>
+        </nav>
+
+        <div class="side-note">
+          <strong>本地文件保持原位</strong>
+          <p>Hub 只索引资源关系。MVP 不修改 Agent 原生配置，也不保存认证正文。</p>
+        </div>
+        <div class="service-status">
+          <i class="status-dot"></i>
+          <span>SQLite ready · 2 分钟前扫描</span>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="commandbar">
+          <div class="breadcrumb">
+            <strong>Agents</strong>
+            <span>/ local inventory</span>
+          </div>
+          <label class="global-search">
+            <input id="globalSearch" type="search" placeholder="搜索 Agent、资源或路径">
+            <span class="shortcut">Ctrl K</span>
+          </label>
+          <button class="button" id="scanButton" type="button">↻ 重新扫描</button>
+        </div>
+
+        <div class="workspace">
+          <section class="inventory" aria-label="Agent 列表">
+            <header class="inventory-head">
+              <div class="eyebrow">Local inventory</div>
+              <h1>4 个 Agent</h1>
+              <p>2 正常 · 1 待确认 · 1 路径失效</p>
+            </header>
+
+            <div class="inventory-tools">
+              <input class="filter-input" id="agentFilter" type="search" placeholder="筛选 Agent">
+              <button class="filter-button" type="button" title="按状态筛选">≡</button>
+            </div>
+
+            <div class="agent-list" id="agentList"></div>
+
+            <footer class="inventory-foot">
+              <button class="button primary" id="addButton" type="button">＋ 添加路径</button>
+              <button class="button" type="button" title="导入发现规则">•••</button>
+            </footer>
+          </section>
+
+          <section class="inspector" aria-label="Agent 详情">
+            <div class="inspector-inner">
+              <header class="agent-head">
+                <div class="agent-logo" id="detailLogo">CC</div>
+                <div class="agent-title">
+                  <div class="agent-title-line">
+                    <h2 id="detailName">Claude Code</h2>
+                    <span class="state" id="detailState">Ready</span>
+                  </div>
+                  <div class="agent-subtitle" id="detailSubtitle">Anthropic · v1.0.62 · 2 分钟前发现</div>
+                </div>
+                <div class="head-actions">
+                  <button class="button" id="openDir" type="button">打开目录</button>
+                  <button class="button primary" id="openConfig" type="button">打开主配置</button>
+                </div>
+              </header>
+
+              <section class="route-card">
+                <div class="section-head">
+                  <h3>Resource route</h3>
+                  <span id="routeHint">3/3 节点已验证</span>
+                </div>
+                <div class="route">
+                  <div class="route-node">
+                    <div class="node-dot" id="runtimeDot">EXE</div>
+                    <div class="node-label">Runtime</div>
+                    <div class="node-value" id="runtimeValue">claude.exe · verified</div>
+                  </div>
+                  <div class="route-node">
+                    <div class="node-dot" id="configDot">DIR</div>
+                    <div class="node-label">Config root</div>
+                    <div class="node-value" id="configValue">~/.claude/</div>
+                  </div>
+                  <div class="route-node">
+                    <div class="node-dot" id="resourceDot">18</div>
+                    <div class="node-label">Resources</div>
+                    <div class="node-value" id="resourceValue">6 managed · 12 observed</div>
+                  </div>
+                </div>
+              </section>
+
+              <div class="tabs" role="tablist" aria-label="Agent 详情">
+                <button class="tab active" type="button" data-tab="resources" role="tab">Resource map</button>
+                <button class="tab" type="button" data-tab="evidence" role="tab">Discovery evidence</button>
+                <button class="tab" type="button" data-tab="metadata" role="tab">Metadata</button>
+              </div>
+
+              <section class="tab-panel active" id="panel-resources">
+                <div class="resource-toolbar">
+                  <div class="resource-summary"><strong id="resourceCount">6</strong> 个核心资源</div>
+                  <div class="chips" aria-label="资源类型筛选">
+                    <button class="chip active" type="button">全部</button>
+                    <button class="chip" type="button">Config</button>
+                    <button class="chip" type="button">Prompt</button>
+                    <button class="chip" type="button">Skill</button>
+                    <button class="chip" type="button">MCP</button>
+                  </div>
+                </div>
+                <div class="resource-table" id="resourceTable"></div>
+                <div class="change-notice" id="changeNotice">
+                  <span>检测到 Agent Hub 之外的文件修改。重新读取后再执行后续操作。</span>
+                  <button id="reviewChange" type="button">查看变化</button>
+                </div>
+              </section>
+
+              <section class="tab-panel" id="panel-evidence">
+                <div class="evidence-list" id="evidenceList"></div>
+              </section>
+
+              <section class="tab-panel" id="panel-metadata">
+                <div class="metadata-grid" id="metadataGrid"></div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="addModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+      <h3 id="addTitle">添加配置位置</h3>
+      <p>选择一个 Agent 配置根。Hub 会先检测类型和资源结构，确认后才加入本地索引。</p>
+
+      <div class="field">
+        <label for="pathInput">配置目录</label>
+        <input id="pathInput" value="C:\Users\dev\.hermes" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="nameInput">显示名称（可选）</label>
+        <input id="nameInput" placeholder="检测成功后自动填写">
+      </div>
+
+      <div class="detect-preview">
+        <strong>✓</strong>
+        <div>
+          <strong>识别为 Hermes</strong>
+          <span>发现 config.yaml 和 memories/；未确认 hermes 可执行文件，将以 Config only 状态添加。</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="button" id="cancelAdd" type="button">取消</button>
+        <button class="button primary" id="confirmAdd" type="button">加入索引</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      const agents = [
+        {
+          id: "claude",
+          logo: "CC",
+          name: "Claude Code",
+          vendor: "Anthropic",
+          version: "v1.0.62",
+          path: "~/.claude/",
+          state: "ready",
+          stateLabel: "Ready",
+          lastSeen: "2 分钟前",
+          runtime: "claude.exe · verified",
+          routeHint: "3/3 节点已验证",
+          resourceValue: "6 managed · 12 observed",
+          resources: [
+            ["MD", "CLAUDE.md", "全局指令", "Prompt", "Global", "Safe", "2 小时前"],
+            ["JS", "settings.json", "主配置", "Config", "Global", "Sensitive", "昨天"],
+            ["JS", "mcp.json", "MCP 服务定义", "MCP", "Global", "Sensitive", "3 天前"],
+            ["DR", "skills/", "3 个 Skill", "Skill", "Global", "Safe", "昨天"],
+            ["DR", "agents/", "1 个子 Agent", "Agent", "Global", "Safe", "5 天前"],
+            ["JS", ".claude.json", "用户级状态", "Config", "User", "Sensitive", "刚刚"]
+          ],
+          evidence: [
+            ["默认配置目录", "~/.claude/", "default rule"],
+            ["核心特征文件", "settings.json · CLAUDE.md", "2 matches"],
+            ["可执行文件", "C:\\Users\\dev\\AppData\\Roaming\\npm\\claude.cmd", "PATH"],
+            ["版本检测", "claude --version → 1.0.62", "312 ms"]
+          ],
+          metadata: [
+            ["Adapter", "claude-code@1"],
+            ["Discovery source", "Default path + PATH"],
+            ["Confidence", "High"],
+            ["Instance ID", "agt_01JCCLAUDE"]
+          ]
+        },
+        {
+          id: "codex",
+          logo: "CX",
+          name: "Codex",
+          vendor: "OpenAI",
+          version: "v0.31.0",
+          path: "~/.codex/",
+          state: "changed",
+          stateLabel: "Changed",
+          lastSeen: "8 分钟前",
+          runtime: "codex.exe · verified",
+          routeHint: "检测到 1 项外部变化",
+          resourceValue: "5 managed · 9 observed",
+          resources: [
+            ["TM", "config.toml", "主配置", "Config", "Global", "Safe", "1 分钟前"],
+            ["JS", "auth.json", "认证状态", "Config", "Global", "Sensitive", "昨天"],
+            ["MD", "AGENTS.md", "全局指令", "Prompt", "Global", "Safe", "4 小时前"],
+            ["DR", "skills/", "4 个 Skill", "Skill", "Global", "Safe", "2 天前"],
+            ["DR", "sessions/", "会话索引", "Session", "Global", "Sensitive", "刚刚"]
+          ],
+          evidence: [
+            ["默认配置目录", "~/.codex/", "default rule"],
+            ["核心特征文件", "config.toml · auth.json", "2 matches"],
+            ["可执行文件", "C:\\Program Files\\Codex\\codex.exe", "PATH"],
+            ["文件观察", "config.toml 哈希已变化", "external"]
+          ],
+          metadata: [
+            ["Adapter", "codex@1"],
+            ["Discovery source", "Default path + PATH"],
+            ["Confidence", "High"],
+            ["Instance ID", "agt_01JCCODEX"]
+          ]
+        },
+        {
+          id: "hermes",
+          logo: "HE",
+          name: "Hermes",
+          vendor: "Nous Research",
+          version: "版本未确认",
+          path: "~/.hermes/",
+          state: "partial",
+          stateLabel: "Config only",
+          lastSeen: "12 分钟前",
+          runtime: "not found in PATH",
+          routeHint: "2/3 节点已验证",
+          resourceValue: "4 managed · 7 observed",
+          resources: [
+            ["YM", "config.yaml", "主配置", "Config", "Global", "Sensitive", "昨天"],
+            ["MD", "memories/MEMORY.md", "长期记忆", "Memory", "Global", "Sensitive", "3 小时前"],
+            ["MD", "memories/USER.md", "用户偏好", "Identity", "Global", "Sensitive", "3 小时前"],
+            ["DR", "skills/", "2 个 Skill", "Skill", "Global", "Safe", "4 天前"]
+          ],
+          evidence: [
+            ["默认配置目录", "~/.hermes/", "legacy rule"],
+            ["核心特征文件", "config.yaml · memories/", "2 matches"],
+            ["可执行文件", "未在 PATH 中找到", "not found"],
+            ["检测结论", "保留为 configuration-only Instance", "medium"]
+          ],
+          metadata: [
+            ["Adapter", "hermes@1"],
+            ["Discovery source", "Legacy default path"],
+            ["Confidence", "Medium"],
+            ["Instance ID", "agt_01JCHERMES"]
+          ]
+        },
+        {
+          id: "kimi",
+          logo: "KC",
+          name: "Kimi Code",
+          vendor: "Manual",
+          version: "v0.7.2",
+          path: "~/.config/kimi-code/",
+          state: "missing",
+          stateLabel: "Missing",
+          lastSeen: "2 天前",
+          runtime: "kimi · last verified 2 days ago",
+          routeHint: "配置根路径不存在",
+          resourceValue: "0 current · 3 retained",
+          resources: [
+            ["JS", "config.json", "历史主配置", "Config", "Global", "Safe", "2 天前"],
+            ["MD", "AGENTS.md", "历史指令", "Prompt", "Global", "Safe", "2 天前"],
+            ["DR", "skills/", "历史 Skill", "Skill", "Global", "Safe", "2 天前"]
+          ],
+          evidence: [
+            ["手动添加", "~/.config/kimi-code/", "manual"],
+            ["路径检查", "目录当前不存在", "failed"],
+            ["历史资源", "保留 3 项上次扫描记录", "retained"],
+            ["建议操作", "重新定位路径或停用记录", "action"]
+          ],
+          metadata: [
+            ["Adapter", "generic-agent@1"],
+            ["Discovery source", "Manual"],
+            ["Confidence", "Low"],
+            ["Instance ID", "agt_01JCKIMI"]
+          ]
+        }
+      ];
+
+      let selectedId = "claude";
+      const agentList = document.getElementById("agentList");
+      const toast = document.getElementById("toast");
+
+      function stateClass(state) {
+        if (state === "changed") return "changed";
+        if (state === "partial") return "partial";
+        if (state === "missing") return "missing";
+        return "";
+      }
+
+      function selectedAgent() {
+        return agents.find((agent) => agent.id === selectedId) || agents[0];
+      }
+
+      function renderList() {
+        const query = document.getElementById("agentFilter").value.trim().toLowerCase();
+        agentList.innerHTML = "";
+
+        agents
+          .filter((agent) => (agent.name + " " + agent.vendor + " " + agent.path).toLowerCase().includes(query))
+          .forEach((agent) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "agent-item" + (agent.id === selectedId ? " active" : "");
+            button.setAttribute("aria-pressed", agent.id === selectedId ? "true" : "false");
+
+            const logo = document.createElement("span");
+            logo.className = "agent-logo";
+            logo.textContent = agent.logo;
+
+            const copy = document.createElement("span");
+            copy.className = "agent-copy";
+            const name = document.createElement("span");
+            name.className = "agent-name";
+            name.textContent = agent.name;
+            const meta = document.createElement("span");
+            meta.className = "agent-meta";
+            meta.textContent = agent.path + " · " + agent.lastSeen;
+            copy.append(name, meta);
+
+            const state = document.createElement("span");
+            state.className = "state " + stateClass(agent.state);
+            state.textContent = agent.stateLabel;
+
+            button.append(logo, copy, state);
+            button.addEventListener("click", () => {
+              selectedId = agent.id;
+              renderList();
+              renderDetail();
+            });
+            agentList.appendChild(button);
+          });
+      }
+
+      function renderResources(agent) {
+        const table = document.getElementById("resourceTable");
+        table.innerHTML = "";
+
+        const header = document.createElement("div");
+        header.className = "resource-row resource-header";
+        ["", "Resource", "Kind", "Scope", "Status", "Action"].forEach((text) => {
+          const cell = document.createElement("span");
+          cell.textContent = text;
+          header.appendChild(cell);
+        });
+        table.appendChild(header);
+
+        agent.resources.forEach((resource) => {
+          const row = document.createElement("div");
+          row.className = "resource-row";
+
+          const icon = document.createElement("span");
+          icon.className = "file-icon";
+          icon.textContent = resource[0];
+
+          const name = document.createElement("div");
+          name.className = "resource-name";
+          const strong = document.createElement("strong");
+          strong.textContent = resource[1];
+          const description = document.createElement("span");
+          description.textContent = resource[2];
+          name.append(strong, description);
+
+          const kind = document.createElement("span");
+          kind.className = "kind";
+          kind.textContent = resource[3];
+
+          const scope = document.createElement("span");
+          scope.className = "scope";
+          scope.textContent = resource[4];
+
+          const risk = document.createElement("span");
+          risk.className = "risk" + (resource[5] === "Sensitive" ? " sensitive" : "");
+          risk.textContent = resource[5] === "Sensitive" ? "Sensitive" : "Observed";
+          risk.title = "修改于 " + resource[6];
+
+          const open = document.createElement("button");
+          open.type = "button";
+          open.className = "open-link";
+          open.textContent = "打开 ↗";
+          open.addEventListener("click", () => showToast("将通过 Resource ID 打开 " + resource[1]));
+
+          row.append(icon, name, kind, scope, risk, open);
+          table.appendChild(row);
+        });
+
+        document.getElementById("resourceCount").textContent = agent.resources.length;
+      }
+
+      function renderEvidence(agent) {
+        const list = document.getElementById("evidenceList");
+        list.innerHTML = "";
+        agent.evidence.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = "evidence";
+
+          const check = document.createElement("span");
+          check.className = "evidence-check";
+          check.textContent = item[2] === "failed" || item[2] === "not found" ? "!" : "✓";
+
+          const name = document.createElement("strong");
+          name.textContent = item[0];
+
+          const value = document.createElement("code");
+          value.textContent = item[1];
+
+          const source = document.createElement("small");
+          source.textContent = item[2];
+
+          row.append(check, name, value, source);
+          list.appendChild(row);
+        });
+      }
+
+      function renderMetadata(agent) {
+        const grid = document.getElementById("metadataGrid");
+        grid.innerHTML = "";
+        agent.metadata.forEach((item) => {
+          const card = document.createElement("div");
+          card.className = "metadata-card";
+          const label = document.createElement("span");
+          label.textContent = item[0];
+          const value = document.createElement("strong");
+          value.textContent = item[1];
+          card.append(label, value);
+          grid.appendChild(card);
+        });
+      }
+
+      function renderDetail() {
+        const agent = selectedAgent();
+        document.getElementById("detailLogo").textContent = agent.logo;
+        document.getElementById("detailName").textContent = agent.name;
+        document.getElementById("detailSubtitle").textContent =
+          agent.vendor + " · " + agent.version + " · " + agent.lastSeen + "发现";
+
+        const state = document.getElementById("detailState");
+        state.className = "state " + stateClass(agent.state);
+        state.textContent = agent.stateLabel;
+
+        document.getElementById("runtimeValue").textContent = agent.runtime;
+        document.getElementById("configValue").textContent = agent.path;
+        document.getElementById("resourceValue").textContent = agent.resourceValue;
+        document.getElementById("resourceDot").textContent = agent.resources.length;
+        document.getElementById("routeHint").textContent = agent.routeHint;
+
+        const runtimeDot = document.getElementById("runtimeDot");
+        const configDot = document.getElementById("configDot");
+        const resourceDot = document.getElementById("resourceDot");
+        runtimeDot.className = "node-dot" + (agent.state === "partial" || agent.state === "missing" ? " changed" : "");
+        configDot.className = "node-dot" + (agent.state === "missing" ? " changed" : "");
+        resourceDot.className = "node-dot" + (agent.state === "changed" || agent.state === "missing" ? " changed" : "");
+
+        document.getElementById("changeNotice").classList.toggle("show", agent.state === "changed");
+        renderResources(agent);
+        renderEvidence(agent);
+        renderMetadata(agent);
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        window.clearTimeout(showToast.timer);
+        showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2200);
+      }
+
+      document.getElementById("agentFilter").addEventListener("input", renderList);
+      document.getElementById("globalSearch").addEventListener("input", (event) => {
+        document.getElementById("agentFilter").value = event.target.value;
+        renderList();
+      });
+
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+          document.querySelectorAll(".tab-panel").forEach((item) => item.classList.remove("active"));
+          tab.classList.add("active");
+          document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+        });
+      });
+
+      document.querySelectorAll(".chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          document.querySelectorAll(".chip").forEach((item) => item.classList.remove("active"));
+          chip.classList.add("active");
+          showToast("原型筛选：" + chip.textContent);
+        });
+      });
+
+      document.getElementById("scanButton").addEventListener("click", (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.textContent = "扫描中…";
+        window.setTimeout(() => {
+          button.disabled = false;
+          button.textContent = "↻ 重新扫描";
+          showToast("扫描完成：4 个 Agent，1 项外部变化");
+        }, 900);
+      });
+
+      const modal = document.getElementById("addModal");
+      document.getElementById("addButton").addEventListener("click", () => {
+        modal.classList.add("show");
+        document.getElementById("pathInput").focus();
+      });
+      document.getElementById("cancelAdd").addEventListener("click", () => modal.classList.remove("show"));
+      document.getElementById("confirmAdd").addEventListener("click", () => {
+        modal.classList.remove("show");
+        showToast("Hermes 配置位置已加入索引");
+      });
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) modal.classList.remove("show");
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") modal.classList.remove("show");
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+          event.preventDefault();
+          document.getElementById("globalSearch").focus();
+        }
+      });
+
+      document.getElementById("openDir").addEventListener("click", () => {
+        showToast("将通过 Agent ID 打开 " + selectedAgent().path);
+      });
+      document.getElementById("openConfig").addEventListener("click", () => {
+        showToast("将通过主配置 Resource ID 打开文件");
+      });
+      document.getElementById("reviewChange").addEventListener("click", () => {
+        showToast("生产版本将在这里显示结构差异，不展示敏感值");
+      });
+
+      renderList();
+      renderDetail();
+    })();
+  </script>
+</body>
+</html>
