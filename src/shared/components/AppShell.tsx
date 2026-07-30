@@ -2,7 +2,6 @@ import {
   FolderOpenIcon,
   GearSixIcon,
   RobotIcon,
-  SquaresFourIcon,
 } from "@phosphor-icons/react";
 import { copy } from "../i18n/zh-CN";
 
@@ -37,7 +36,7 @@ export function AppShell({
     <div className="app-shell">
       <header className="titlebar">
         <div className="app-mark" aria-hidden="true">
-          <SquaresFourIcon weight="fill" />
+          <img src="/app-icon.svg" alt="" />
         </div>
         <strong>{copy.productName}</strong>
         <span>{copy.productCaption}</span>

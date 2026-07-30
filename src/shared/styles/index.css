@@ -131,13 +131,18 @@ select:focus-visible {
 }
 
 .app-mark {
-  display: grid;
   width: 22px;
   height: 22px;
-  place-items: center;
-  border-radius: 6px;
-  color: var(--primary);
-  background: var(--primary-soft);
+  flex: 0 0 22px;
+  overflow: hidden;
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.app-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .app-body {
