@@ -1,77 +1,158 @@
 # Agent Hub
 
-Agent Hub 是一个面向个人开发者的本地 AI Agent 控制中心。
+Agent Hub 是一个本地优先的 AI Agent 桌面管理入口。它不会替代 Claude Code、Codex、Hermes Agent 或 Kimi Code，而是发现本机实例、建立只读资源索引，并把分散的配置、Prompt、Skill、MCP 与身份文件整理为可解释、可导航的资源地图。
 
-它不会替代 Claude Code、Codex、Hermes 等 Agent，而是在它们之上建立统一的管理层：自动发现本地安装与配置目录，整理 Agent、资源和工作空间之间的关系，并提供可解释、可导航的本地资源地图。
+当前仓库已包含可运行的 MVP：
 
-## 当前阶段
+- Tauri 2 + React 19 + TypeScript + Vite
+- Rust 分层后端与窄 IPC 命令
+- SQLite 初始化、migration、事务对账与持久化
+- Claude Code、Codex、Hermes Agent、Kimi Code Adapter
+- Runtime 与 Configuration 分离检测
+- PATH、npm 与默认安装路径中的 CLI Runtime 发现和版本检测
+- Agent 列表、搜索、状态筛选与详情
+- 白名单 Resource 扫描、敏感标记与跨 Agent 索引
+- 打开 Agent 目录与已验证资源
+- 手动添加 Agent 配置路径
+- 加载、空状态、错误和恢复动作
 
-项目处于架构与 MVP 设计阶段，首个版本聚焦：
+## 安全边界
 
-- 自动发现 Claude Code、Codex 和 Hermes
-- 管理 Agent 的名称、路径、标签和状态
-- 展示 Agent 的配置结构与发现证据
-- 快速打开配置目录和已识别资源
-- 使用 SQLite 持久化 Agent 元数据与资源关系
+MVP 是只读管理层：
 
-首个版本不会修改 Agent 原生配置，也不会存储 API Key、Token 或认证文件正文。
+- 不修改 Agent 原生配置。
+- 不上传本地配置或工作区内容。
+- 不把配置正文、API Key、Token 或认证文件内容写入 SQLite。
+- 不向前端暴露任意文件读取、任意文件写入或任意命令执行接口。
+- 打开操作只接收数据库 ID，由 Rust 查询并再次验证目标路径属于已确认的 Agent 根目录。
 
-## 核心模型
+## 开发环境
 
-```text
-Agent Type
-  └── Agent Instance
-        ├── Resources
-        ├── Workspaces
-        └── Discovery Evidence
+需要：
+
+- Node.js 20 或更高版本
+- npm 10 或更高版本
+- Rust stable（通过 rustup 安装）
+- 对应平台的 [Tauri 系统依赖](https://v2.tauri.app/start/prerequisites/)
+
+安装依赖：
+
+```bash
+npm install
 ```
 
-- **Agent Type**：Claude Code、Codex、Hermes 等运行时类型
-- **Agent Instance**：本机的一次实际安装或配置实例
-- **Resource**：配置、Prompt、Skill、MCP、身份文件和目录
-- **Workspace**：Agent 使用的本地项目目录
+启动浏览器 UI 预览：
 
-## 文档与原型
-
-- [完整实施方案](docs/implementation-plan.md)
-- [UI 设计规范](docs/design-system.md)
-- [原型评审与设计决策](docs/prototype-review.md)
-- [交互原型 v2](prototype/agent-hub-prototype-v2.html)
-
-原始原型保留在用户本地，不纳入仓库；v2 是根据架构评审重新组织信息结构后的参考版本。
-
-## 推荐技术栈
-
-- React + TypeScript + Vite
-- Tauri 2
-- Rust
-- SQLite / rusqlite
-- TanStack Query
-- Radix UI 或 shadcn/ui
-
-## 计划中的仓库结构
-
-```text
-agent-hub/
-├── docs/
-├── prototype/
-├── src/                    # React 前端
-├── src-tauri/
-│   └── src/
-│       ├── commands/
-│       ├── application/
-│       ├── domain/
-│       ├── adapters/
-│       └── infrastructure/
-└── tests/
+```bash
+npm run dev
 ```
 
-实际工程代码将在 MVP Milestone 1 中初始化，避免在领域边界尚未稳定时提前生成一次性脚手架。
+浏览器预览不访问本地文件系统；扫描、手动添加和打开操作只有在 Tauri 桌面运行时可用。
 
-## 项目原则
+启动桌面应用：
 
-1. SQLite 管理 Agent 元数据和资源关系，原生文件仍是 Agent 运行配置的事实来源。
-2. 不向前端暴露任意文件读写或任意命令执行接口。
-3. 新增 Agent 通过 Adapter 扩展，不在数据库中增加新的应用布尔字段。
-4. 任何未来的配置写入都必须经过预览、备份、原子写入、验证和回滚。
-5. 默认本地优先，不上传用户配置、工作区内容或认证信息。
+```bash
+npm run tauri dev
+```
+
+## 质量检查
+
+前端：
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+Rust：
+
+```bash
+cd src-tauri
+cargo fmt --all -- --check
+cargo check --all-targets
+cargo test --lib
+cargo clippy --all-targets -- -D warnings
+```
+
+生成可独立运行但不打包的桌面程序：
+
+```bash
+npm run desktop:build:binary
+```
+
+生成 Windows Release 安装包：
+
+```bash
+npm run desktop:build
+```
+
+安装包输出到：
+
+```text
+src-tauri/target/release/bundle/nsis/
+src-tauri/target/release/bundle/msi/
+```
+
+## 架构
+
+```text
+React Presentation
+        │
+Typed IPC Client
+        │
+Tauri Commands
+        │
+Application Service
+   ┌────┴──────────┐
+Domain Model   Adapter Registry
+   │                 ├── Runtime Detection
+   │                 └── Configuration Detection
+   │                            │
+SQLite v2                 Filesystem / PATH / OS
+   │
+   ├── Agent Runtime
+   ├── Agent Configuration
+   └── Resource Index
+```
+
+每个 Agent Instance 由三部分组成：Runtime 记录 CLI 是否安装、命令名、可执行文件、CLI 自报版本、解析来源和安装方式；Configuration 记录配置根、配置文件及 Resource；Health 由两者综合计算，不作为 Adapter 内的混合检测结果。
+
+手动添加路径作为独立的用户登记保存在 `manual_agent_locations`。从 Hub 移除手动 Agent 只删除本地索引和登记，不会删除 Agent 原始配置目录。
+
+关键目录：
+
+```text
+src/
+├── app/
+├── features/
+│   ├── agents/
+│   ├── resources/
+│   └── settings/
+└── shared/
+    ├── api/
+    ├── components/
+    ├── i18n/
+    ├── lib/
+    └── styles/
+
+src-tauri/src/
+├── commands/
+├── application/
+├── domain/
+├── adapters/
+├── infrastructure/
+└── error.rs
+```
+
+数据流与职责边界详见 [完整实施方案](docs/implementation-plan.md)，UI 规范见 [设计系统](docs/design-system.md)。
+
+## Adapter 扫描范围
+
+- Claude Code：`~/.claude`、`CLAUDE_CONFIG_DIR`，以及 PATH/npm/默认安装位置中的 `claude`
+- Codex：`~/.codex`、`CODEX_HOME`，以及 PATH/npm/默认安装位置中的 `codex`
+- Hermes：`~/.hermes`、`HERMES_HOME` / `HERMES_CONFIG_DIR`，以及 PATH/npm/默认安装位置中的 `hermes`
+- Kimi Code：`~/.kimi-code`、`KIMI_HOME` / `KIMI_CONFIG_DIR`，以及 PATH 或 `~/.kimi-code/bin` 中的 `kimi`
+
+扫描只进入每个 Adapter 声明的资源目录，最大深度为 3、单实例最多 250 个资源；不会递归扫描整个用户主目录。

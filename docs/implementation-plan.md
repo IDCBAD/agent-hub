@@ -2,11 +2,23 @@
 
 ## 0. 文档状态
 
-- 状态：MVP 架构基线
+- 状态：MVP 已实现，进入本地验收
 - 首批目标平台：Windows、macOS、Linux
 - 首批 Agent：Claude Code、Codex、Hermes
 - 产品形态：本地优先的 Tauri 桌面应用
 - MVP 核心结果：为本机 Agent 建立一份持久化、可解释、可导航的资源地图
+
+### 0.1 架构修订：Runtime 与 Configuration 分离
+
+MVP v2 将 Agent Instance 拆为两个独立观测对象：
+
+- Runtime：CLI 是否安装、命令名、可执行文件路径、CLI 自报版本、解析来源（PATH/默认路径）和安装方式（npm/Python/Agent 自带/原生/未知）。
+- Configuration：配置根、配置文件、可读/有效状态和 Resource 列表。
+- Health：由 Runtime 与 Configuration 综合计算为 `healthy`、`runtime_only`、`config_only`、`degraded`、`changed`、`missing` 或 `disabled`。
+
+SQLite 使用 `agent_runtimes` 与 `agent_configurations` 一对一关联 `agent_instances`，`resources` 归属于 Configuration。旧 v1 扁平字段仅作为兼容迁移来源，不再作为查询事实来源。
+
+手动路径属于用户登记意图，使用 `manual_agent_locations` 独立持久化。移除手动 Agent 只删除 Hub 数据库中的登记与级联索引，禁止删除 Agent 原始目录。
 
 本文档用于指导从空仓库到 MVP 发布的完整实施过程。任何改变数据所有权、安全边界或 Agent 抽象的实现，都应先更新本文档或新增 ADR。
 
