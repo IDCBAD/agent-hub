@@ -10,7 +10,7 @@ use std::io;
 use adapters::AdapterRegistry;
 use application::ApplicationService;
 use commands::AppState;
-use infrastructure::database::Database;
+use infrastructure::{database::Database, webview_memory};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -23,6 +23,9 @@ pub fn run() {
             let service = ApplicationService::new(database, AdapterRegistry::standard())
                 .map_err(|error| io::Error::other(error.to_string()))?;
             app.manage(AppState { service });
+            if let Some(main_window) = app.get_webview_window("main") {
+                webview_memory::install(main_window);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

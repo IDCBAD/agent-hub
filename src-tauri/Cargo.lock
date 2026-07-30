@@ -10,7 +10,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "agent-hub"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dirs",
  "open",
@@ -24,6 +24,8 @@ dependencies = [
  "uuid",
  "wait-timeout",
  "walkdir",
+ "webview2-com",
+ "windows-core 0.61.2",
 ]
 
 [[package]]

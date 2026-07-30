@@ -1,6 +1,6 @@
 [package]
 name = "agent-hub"
-version = "0.1.1"
+version = "0.1.2"
 description = "A local-first desktop hub for AI agents"
 authors = ["Agent Hub contributors"]
 edition = "2021"
@@ -23,6 +23,10 @@ tauri = { version = "2", features = [] }
 uuid = { version = "1", features = ["v4", "serde"] }
 wait-timeout = "0.2"
 walkdir = "2"
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38.2"
+windows-core = "0.61"
 
 [dev-dependencies]
 tempfile = "3"
