@@ -1,6 +1,6 @@
 [package]
 name = "agent-hub"
-version = "0.1.2"
+version = "0.2.0"
 description = "A local-first desktop hub for AI agents"
 authors = ["Agent Hub contributors"]
 edition = "2021"
@@ -19,7 +19,9 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
 wait-timeout = "0.2"
 walkdir = "2"

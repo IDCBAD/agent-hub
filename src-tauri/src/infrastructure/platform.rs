@@ -3,14 +3,32 @@ use std::path::{Path, PathBuf};
 use crate::error::AppError;
 
 pub fn open_agent_directory(path: &Path) -> Result<(), AppError> {
+    let verified = verify_directory(path, "Agent 配置路径不是目录。")?;
+    open_directory(&verified, "Agent 目录")
+}
+
+pub fn open_quick_directory(path: &Path) -> Result<(), AppError> {
+    let verified = verify_directory(path, "快捷路径不是目录。")?;
+    open_directory(&verified, "快捷目录")
+}
+
+pub fn canonical_directory(path: &Path) -> Result<PathBuf, AppError> {
+    verify_directory(path, "选择的路径不是目录。")
+}
+
+fn verify_directory(path: &Path, message: &str) -> Result<PathBuf, AppError> {
     let verified = verify_existing(path)?;
     if !verified.is_dir() {
-        return Err(AppError::invalid_path("Agent 配置路径不是目录。"));
+        return Err(AppError::invalid_path(message));
     }
-    open::that_detached(&verified).map_err(|error| {
+    Ok(verified)
+}
+
+fn open_directory(verified: &Path, label: &str) -> Result<(), AppError> {
+    open::that_detached(verified).map_err(|error| {
         AppError::new(
             "open_failed",
-            format!("系统无法打开 Agent 目录：{error}"),
+            format!("系统无法打开{label}：{error}"),
             true,
             Some("请检查目录权限和系统文件管理器设置。"),
         )

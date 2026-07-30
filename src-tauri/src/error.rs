@@ -41,7 +41,7 @@ impl AppError {
             "invalid_path",
             message,
             true,
-            Some("请选择一个存在且可访问的 Agent 配置目录。"),
+            Some("请选择一个存在且可访问的目录。"),
         )
     }
 

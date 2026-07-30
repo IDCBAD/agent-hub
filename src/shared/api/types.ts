@@ -128,6 +128,29 @@ export interface ManualLocationRequest {
   path: string;
 }
 
+export interface QuickLocation {
+  id: string;
+  name: string;
+  path: string;
+  showInTray: boolean;
+  sortOrder: number;
+  lastOpenedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreateQuickLocationRequest {
+  name: string;
+  path: string;
+  showInTray: boolean;
+}
+
+export interface UpdateQuickLocationRequest {
+  id: string;
+  name: string;
+  showInTray: boolean;
+}
+
 export interface AppErrorShape {
   code: string;
   message: string;

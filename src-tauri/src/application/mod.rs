@@ -8,12 +8,18 @@ use crate::{
     domain::{
         agent::{AgentFilter, AgentOverview, AgentSummary, ManualLocationRequest},
         discovery::{DiscoveryEvidence, DiscoveryResult},
+        quick_location::{
+            CreateQuickLocationRequest, QuickLocation, ReorderQuickLocationsRequest,
+            UpdateQuickLocationRequest,
+        },
         resource::{Resource, ResourceFilter},
     },
     error::AppError,
     infrastructure::{
         database::Database,
-        platform::{open_agent_directory, open_resource},
+        platform::{
+            canonical_directory, open_agent_directory, open_quick_directory, open_resource,
+        },
     },
 };
 
@@ -124,6 +130,89 @@ impl ApplicationService {
     pub fn remove_manual_agent(&self, agent_id: &str) -> Result<(), AppError> {
         self.database.remove_manual_agent(agent_id)
     }
+
+    pub fn list_quick_locations(&self) -> Result<Vec<QuickLocation>, AppError> {
+        self.database.list_quick_locations()
+    }
+
+    pub fn create_quick_location(
+        &self,
+        request: CreateQuickLocationRequest,
+    ) -> Result<QuickLocation, AppError> {
+        let name = validate_quick_location_name(&request.name)?;
+        let path = request.path.trim();
+        if path.is_empty() {
+            return Err(AppError::invalid_path("快捷目录不能为空。"));
+        }
+        let canonical = canonical_directory(Path::new(path))?;
+        self.database
+            .create_quick_location(name, &canonical, request.show_in_tray)
+    }
+
+    pub fn update_quick_location(
+        &self,
+        request: UpdateQuickLocationRequest,
+    ) -> Result<QuickLocation, AppError> {
+        let name = validate_quick_location_name(&request.name)?;
+        self.database
+            .update_quick_location(&request.id, name, request.show_in_tray)
+    }
+
+    pub fn reorder_quick_locations(
+        &self,
+        request: ReorderQuickLocationsRequest,
+    ) -> Result<(), AppError> {
+        let existing = self.database.list_quick_locations()?;
+        let existing_ids = existing
+            .iter()
+            .map(|location| location.id.as_str())
+            .collect::<HashSet<_>>();
+        let requested_ids = request
+            .ids
+            .iter()
+            .map(String::as_str)
+            .collect::<HashSet<_>>();
+        if request.ids.len() != existing.len() || requested_ids != existing_ids {
+            return Err(AppError::new(
+                "invalid_location_order",
+                "快捷目录顺序与当前列表不一致。",
+                true,
+                Some("请刷新快捷目录列表后重试。"),
+            ));
+        }
+        self.database.reorder_quick_locations(&request.ids)
+    }
+
+    pub fn remove_quick_location(&self, id: &str) -> Result<(), AppError> {
+        self.database.remove_quick_location(id)
+    }
+
+    pub fn open_quick_location(&self, id: &str) -> Result<(), AppError> {
+        let path = self.database.get_quick_location_path(id)?;
+        open_quick_directory(&path)?;
+        self.database.mark_quick_location_opened(id)
+    }
+}
+
+fn validate_quick_location_name(value: &str) -> Result<&str, AppError> {
+    let name = value.trim();
+    if name.is_empty() {
+        return Err(AppError::new(
+            "invalid_name",
+            "快捷目录名称不能为空。",
+            true,
+            Some("请输入一个便于识别的名称。"),
+        ));
+    }
+    if name.chars().count() > 60 {
+        return Err(AppError::new(
+            "invalid_name",
+            "快捷目录名称不能超过 60 个字符。",
+            true,
+            Some("请使用更短的显示名称。"),
+        ));
+    }
+    Ok(name)
 }
 
 fn manual_location_key(agent_type_id: &str, path: &Path) -> String {
@@ -237,5 +326,67 @@ mod tests {
         assert!(config_root.exists());
         assert!(config_root.join("config.toml").exists());
         assert!(service.list_agents(None).expect("agents").is_empty());
+    }
+
+    #[test]
+    fn quick_location_flow_keeps_the_original_directory() {
+        let (directory, service) = service();
+        let quick_root = directory.path().join("daily-prompts");
+        fs::create_dir_all(&quick_root).expect("quick directory");
+
+        let location = service
+            .create_quick_location(CreateQuickLocationRequest {
+                name: " Daily Prompts ".to_owned(),
+                path: quick_root.to_string_lossy().into_owned(),
+                show_in_tray: true,
+            })
+            .expect("create quick location");
+        assert_eq!(location.name, "Daily Prompts");
+        assert!(location.show_in_tray);
+
+        let updated = service
+            .update_quick_location(UpdateQuickLocationRequest {
+                id: location.id.clone(),
+                name: "Prompts".to_owned(),
+                show_in_tray: false,
+            })
+            .expect("update quick location");
+        assert_eq!(updated.name, "Prompts");
+        assert!(!updated.show_in_tray);
+
+        service
+            .remove_quick_location(&location.id)
+            .expect("remove quick location");
+        assert!(quick_root.exists());
+        assert!(service
+            .list_quick_locations()
+            .expect("list quick locations")
+            .is_empty());
+    }
+
+    #[test]
+    fn quick_location_rejects_missing_directory_and_empty_name() {
+        let (directory, service) = service();
+        let error = service
+            .create_quick_location(CreateQuickLocationRequest {
+                name: "Missing".to_owned(),
+                path: directory
+                    .path()
+                    .join("missing")
+                    .to_string_lossy()
+                    .into_owned(),
+                show_in_tray: true,
+            })
+            .expect_err("missing directory");
+        assert_eq!(error.code, "invalid_path");
+
+        let error = service
+            .create_quick_location(CreateQuickLocationRequest {
+                name: " ".to_owned(),
+                path: directory.path().to_string_lossy().into_owned(),
+                show_in_tray: true,
+            })
+            .expect_err("empty name");
+        assert_eq!(error.code, "invalid_name");
     }
 }

@@ -16,6 +16,7 @@ use crate::{
         configuration::ConfigurationSummary,
         discovery::{DiscoveryEvidence, DiscoveryResult},
         health::HealthStatus,
+        quick_location::QuickLocation,
         resource::{Resource, ResourceFilter, ResourceKind},
         runtime::{
             RuntimeDistribution, RuntimeResolutionSource, RuntimeSummary, VersionProbeStatus,
@@ -24,7 +25,7 @@ use crate::{
     error::AppError,
 };
 
-const SCHEMA_VERSION: i64 = 5;
+const SCHEMA_VERSION: i64 = 6;
 
 #[derive(Debug, Clone)]
 pub struct Database {
@@ -329,6 +330,26 @@ impl Database {
                     WHEN 'kimi-cli' THEN 'Kimi Code'
                     ELSE display_name
                 END;
+                "#,
+            )?;
+        }
+        if current < 6 {
+            transaction.execute_batch(
+                r#"
+                CREATE TABLE IF NOT EXISTS quick_locations (
+                    id TEXT PRIMARY KEY,
+                    display_name TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    normalized_path TEXT NOT NULL UNIQUE,
+                    show_in_tray INTEGER NOT NULL DEFAULT 1,
+                    sort_order INTEGER NOT NULL,
+                    last_opened_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_quick_locations_order
+                    ON quick_locations(sort_order, created_at);
                 "#,
             )?;
         }
@@ -931,6 +952,162 @@ impl Database {
         transaction.commit()?;
         Ok(())
     }
+
+    pub fn list_quick_locations(&self) -> Result<Vec<QuickLocation>, AppError> {
+        let connection = self.open()?;
+        let mut statement = connection.prepare(
+            r#"
+            SELECT
+                id, display_name, path, show_in_tray, sort_order,
+                last_opened_at, created_at, updated_at
+            FROM quick_locations
+            ORDER BY sort_order, created_at, id
+            "#,
+        )?;
+        let locations = statement
+            .query_map([], |row| {
+                Ok(QuickLocation {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    path: display_path(row.get(2)?),
+                    show_in_tray: row.get::<_, i64>(3)? != 0,
+                    sort_order: row.get(4)?,
+                    last_opened_at: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(locations)
+    }
+
+    pub fn create_quick_location(
+        &self,
+        name: &str,
+        path: &Path,
+        show_in_tray: bool,
+    ) -> Result<QuickLocation, AppError> {
+        let mut connection = self.open()?;
+        let transaction = connection.transaction()?;
+        let now = now_seconds();
+        let id = Uuid::new_v4().to_string();
+        let path_value = path.to_string_lossy().into_owned();
+        let normalized_path = normalized_path_key(path);
+        let sort_order: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM quick_locations",
+            [],
+            |row| row.get(0),
+        )?;
+        let inserted = transaction.execute(
+            r#"
+            INSERT INTO quick_locations (
+                id, display_name, path, normalized_path, show_in_tray,
+                sort_order, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
+            ON CONFLICT(normalized_path) DO NOTHING
+            "#,
+            params![
+                id,
+                name,
+                path_value,
+                normalized_path,
+                i64::from(show_in_tray),
+                sort_order,
+                now
+            ],
+        )?;
+        if inserted == 0 {
+            return Err(AppError::new(
+                "duplicate_location",
+                "这个目录已经绑定过了。",
+                true,
+                Some("可以编辑现有快捷目录的名称或托盘设置。"),
+            ));
+        }
+        transaction.commit()?;
+        self.get_quick_location(&id)
+    }
+
+    pub fn update_quick_location(
+        &self,
+        id: &str,
+        name: &str,
+        show_in_tray: bool,
+    ) -> Result<QuickLocation, AppError> {
+        let connection = self.open()?;
+        let updated = connection.execute(
+            r#"
+            UPDATE quick_locations
+            SET display_name = ?2, show_in_tray = ?3, updated_at = ?4
+            WHERE id = ?1
+            "#,
+            params![id, name, i64::from(show_in_tray), now_seconds()],
+        )?;
+        if updated == 0 {
+            return Err(AppError::not_found("快捷目录"));
+        }
+        self.get_quick_location(id)
+    }
+
+    pub fn reorder_quick_locations(&self, ids: &[String]) -> Result<(), AppError> {
+        let mut connection = self.open()?;
+        let transaction = connection.transaction()?;
+        let now = now_seconds();
+        for (index, id) in ids.iter().enumerate() {
+            transaction.execute(
+                r#"
+                UPDATE quick_locations
+                SET sort_order = ?2, updated_at = ?3
+                WHERE id = ?1
+                "#,
+                params![id, index as i64, now],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn remove_quick_location(&self, id: &str) -> Result<(), AppError> {
+        let connection = self.open()?;
+        let removed = connection.execute("DELETE FROM quick_locations WHERE id = ?1", [id])?;
+        if removed == 0 {
+            return Err(AppError::not_found("快捷目录"));
+        }
+        Ok(())
+    }
+
+    pub fn get_quick_location_path(&self, id: &str) -> Result<PathBuf, AppError> {
+        let connection = self.open()?;
+        connection
+            .query_row(
+                "SELECT path FROM quick_locations WHERE id = ?1",
+                [id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .map(PathBuf::from)
+            .ok_or_else(|| AppError::not_found("快捷目录"))
+    }
+
+    pub fn mark_quick_location_opened(&self, id: &str) -> Result<(), AppError> {
+        let connection = self.open()?;
+        connection.execute(
+            r#"
+            UPDATE quick_locations
+            SET last_opened_at = ?2, updated_at = ?2
+            WHERE id = ?1
+            "#,
+            params![id, now_seconds()],
+        )?;
+        Ok(())
+    }
+
+    fn get_quick_location(&self, id: &str) -> Result<QuickLocation, AppError> {
+        self.list_quick_locations()?
+            .into_iter()
+            .find(|location| location.id == id)
+            .ok_or_else(|| AppError::not_found("快捷目录"))
+    }
 }
 
 fn resources_changed(
@@ -1352,6 +1529,40 @@ mod tests {
             database.list_agents(None).expect("agents")[0].health,
             HealthStatus::Changed
         );
+    }
+
+    #[test]
+    fn quick_locations_are_unique_editable_and_ordered() {
+        let (_directory, database) = test_database();
+        let first_path = PathBuf::from("C:/fixture/prompts");
+        let second_path = PathBuf::from("C:/fixture/projects");
+        let first = database
+            .create_quick_location("Prompts", &first_path, true)
+            .expect("first location");
+        let second = database
+            .create_quick_location("Projects", &second_path, false)
+            .expect("second location");
+
+        let duplicate = database
+            .create_quick_location("Duplicate", &first_path, true)
+            .expect_err("duplicate path");
+        assert_eq!(duplicate.code, "duplicate_location");
+
+        let updated = database
+            .update_quick_location(&second.id, "Workspaces", true)
+            .expect("updated location");
+        assert_eq!(updated.name, "Workspaces");
+        assert!(updated.show_in_tray);
+
+        database
+            .reorder_quick_locations(&[second.id.clone(), first.id.clone()])
+            .expect("reorder");
+        let reordered = database.list_quick_locations().expect("list");
+        assert_eq!(reordered[0].id, second.id);
+        assert_eq!(reordered[1].id, first.id);
+
+        database.remove_quick_location(&first.id).expect("remove");
+        assert_eq!(database.list_quick_locations().expect("list").len(), 1);
     }
 
     #[cfg(windows)]

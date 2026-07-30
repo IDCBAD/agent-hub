@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowClockwiseIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { listen } from "@tauri-apps/api/event";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { agentHubApi } from "../shared/api/client";
 import type {
+  CreateQuickLocationRequest,
   HealthStatus,
   ManualLocationRequest,
+  QuickLocation,
 } from "../shared/api/types";
 import {
   AppShell,
@@ -19,16 +23,21 @@ import { ManualAgentDialog } from "../features/agents/ManualAgentDialog";
 import { RemoveAgentDialog } from "../features/agents/RemoveAgentDialog";
 import { ResourceIndex } from "../features/resources/ResourceIndex";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { QuickLocationDialog } from "../features/locations/QuickLocationDialog";
+import { QuickLocationsPage } from "../features/locations/QuickLocationsPage";
 
 export function App() {
   const queryClient = useQueryClient();
-  const autoScanStarted = useRef(false);
   const [section, setSection] = useState<AppSection>("agents");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<HealthStatus | "all">("all");
   const [manualOpen, setManualOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [quickLocationDraft, setQuickLocationDraft] = useState<{
+    selectedPath?: string;
+    location?: QuickLocation;
+  } | null>(null);
   const [operationError, setOperationError] = useState<unknown>(null);
 
   const agentsQuery = useQuery({
@@ -38,6 +47,10 @@ export function App() {
   const resourcesIndexQuery = useQuery({
     queryKey: ["resources"],
     queryFn: () => agentHubApi.listResources(),
+  });
+  const quickLocationsQuery = useQuery({
+    queryKey: ["quick-locations"],
+    queryFn: () => agentHubApi.listQuickLocations(),
   });
 
   const scanMutation = useMutation({
@@ -54,14 +67,27 @@ export function App() {
 
   useEffect(() => {
     if (
-      !autoScanStarted.current &&
-      typeof window !== "undefined" &&
-      window.__TAURI_INTERNALS__
+      typeof window === "undefined" ||
+      !window.__TAURI_INTERNALS__
     ) {
-      autoScanStarted.current = true;
-      scanMutation.mutate();
+      return;
     }
-  }, [scanMutation]);
+    let disposed = false;
+    let stopListening: (() => void) | undefined;
+    void listen("agent-hub-data-changed", () => {
+      void queryClient.invalidateQueries();
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        stopListening = unlisten;
+      }
+    });
+    return () => {
+      disposed = true;
+      stopListening?.();
+    };
+  }, [queryClient]);
 
   const filteredAgents = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
@@ -149,26 +175,106 @@ export function App() {
       type,
       id,
     }: {
-      type: "directory" | "resource";
+      type: "directory" | "resource" | "quick";
       id: string;
     }) =>
       type === "directory"
         ? agentHubApi.openAgentDirectory(id)
-        : agentHubApi.openResource(id),
+        : type === "resource"
+          ? agentHubApi.openResource(id)
+          : agentHubApi.openQuickLocation(id),
+    onSuccess: async (_, variables) => {
+      setOperationError(null);
+      if (variables.type === "quick") {
+        await queryClient.invalidateQueries({ queryKey: ["quick-locations"] });
+      }
+    },
     onError: setOperationError,
   });
+
+  const saveQuickLocationMutation = useMutation({
+    mutationFn: ({
+      request,
+      location,
+    }: {
+      request: CreateQuickLocationRequest;
+      location?: QuickLocation;
+    }) =>
+      location
+        ? agentHubApi.updateQuickLocation({
+            id: location.id,
+            name: request.name,
+            showInTray: request.showInTray,
+          })
+        : agentHubApi.createQuickLocation(request),
+    onSuccess: async () => {
+      setQuickLocationDraft(null);
+      setOperationError(null);
+      await queryClient.invalidateQueries({ queryKey: ["quick-locations"] });
+    },
+  });
+
+  const removeQuickLocationMutation = useMutation({
+    mutationFn: (locationId: string) =>
+      agentHubApi.removeQuickLocation(locationId),
+    onSuccess: async () => {
+      setOperationError(null);
+      await queryClient.invalidateQueries({ queryKey: ["quick-locations"] });
+    },
+    onError: setOperationError,
+  });
+
+  const reorderQuickLocationsMutation = useMutation({
+    mutationFn: (ids: string[]) => agentHubApi.reorderQuickLocations(ids),
+    onSuccess: async () => {
+      setOperationError(null);
+      await queryClient.invalidateQueries({ queryKey: ["quick-locations"] });
+    },
+    onError: setOperationError,
+  });
+
+  const updateQuickLocationMutation = useMutation({
+    mutationFn: (location: QuickLocation) =>
+      agentHubApi.updateQuickLocation({
+        id: location.id,
+        name: location.name,
+        showInTray: !location.showInTray,
+      }),
+    onSuccess: async () => {
+      setOperationError(null);
+      await queryClient.invalidateQueries({ queryKey: ["quick-locations"] });
+    },
+    onError: setOperationError,
+  });
+
+  const chooseQuickLocation = async () => {
+    try {
+      const selected = await openDialog({
+        directory: true,
+        multiple: false,
+        title: copy.quickLocations.addTitle,
+      });
+      if (typeof selected === "string") {
+        setQuickLocationDraft({ selectedPath: selected });
+      }
+    } catch (error) {
+      setOperationError(error);
+    }
+  };
 
   const queryError =
     agentsQuery.error ||
     resourcesIndexQuery.error ||
     overviewQuery.error ||
     agentResourcesQuery.error ||
-    evidenceQuery.error;
+    evidenceQuery.error ||
+    quickLocationsQuery.error;
 
   return (
     <AppShell
       section={section}
       agentCount={agentsQuery.data?.length ?? 0}
+      quickLocationCount={quickLocationsQuery.data?.length ?? 0}
       resourceCount={resourcesIndexQuery.data?.length ?? 0}
       onSectionChange={setSection}
     >
@@ -268,6 +374,45 @@ export function App() {
         />
       )}
 
+      {section === "locations" && (
+        <QuickLocationsPage
+          locations={quickLocationsQuery.data ?? []}
+          isLoading={quickLocationsQuery.isLoading}
+          isMutating={
+            removeQuickLocationMutation.isPending ||
+            reorderQuickLocationsMutation.isPending ||
+            updateQuickLocationMutation.isPending
+          }
+          onAdd={() => void chooseQuickLocation()}
+          onEdit={(location) => setQuickLocationDraft({ location })}
+          onOpen={(id) => openMutation.mutate({ type: "quick", id })}
+          onRemove={(location) => {
+            if (
+              window.confirm(
+                `从 Agent Hub 移除“${location.name}”？本机目录及文件不会被删除。`,
+              )
+            ) {
+              removeQuickLocationMutation.mutate(location.id);
+            }
+          }}
+          onToggleTray={(location) =>
+            updateQuickLocationMutation.mutate(location)
+          }
+          onMove={(index, direction) => {
+            const ordered = [...(quickLocationsQuery.data ?? [])];
+            const target = index + direction;
+            if (target < 0 || target >= ordered.length) return;
+            [ordered[index], ordered[target]] = [
+              ordered[target],
+              ordered[index],
+            ];
+            reorderQuickLocationsMutation.mutate(
+              ordered.map((location) => location.id),
+            );
+          }}
+        />
+      )}
+
       {section === "settings" && <SettingsPage />}
 
       <ManualAgentDialog
@@ -293,6 +438,29 @@ export function App() {
         }}
         onConfirm={() =>
           selectedId && removeMutation.mutate(selectedId)
+        }
+      />
+      <QuickLocationDialog
+        open={!!quickLocationDraft}
+        location={quickLocationDraft?.location}
+        selectedPath={quickLocationDraft?.selectedPath}
+        isSubmitting={saveQuickLocationMutation.isPending}
+        errorMessage={
+          saveQuickLocationMutation.error
+            ? toAppError(saveQuickLocationMutation.error).message
+            : undefined
+        }
+        onClose={() => {
+          if (!saveQuickLocationMutation.isPending) {
+            saveQuickLocationMutation.reset();
+            setQuickLocationDraft(null);
+          }
+        }}
+        onSubmit={(request) =>
+          saveQuickLocationMutation.mutate({
+            request,
+            location: quickLocationDraft?.location,
+          })
         }
       />
     </AppShell>

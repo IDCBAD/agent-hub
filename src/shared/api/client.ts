@@ -6,8 +6,11 @@ import type {
   DiscoveryEvidence,
   DiscoveryResult,
   ManualLocationRequest,
+  CreateQuickLocationRequest,
+  QuickLocation,
   Resource,
   ResourceFilter,
+  UpdateQuickLocationRequest,
 } from "./types";
 
 type Invoke = <T>(
@@ -64,6 +67,28 @@ export function createAgentHubApi(call: Invoke = desktopInvoke) {
       mutate<void>("open_agent_directory", "打开 Agent 目录", { agentId }),
     openResource: (resourceId: string) =>
       mutate<void>("open_resource", "打开资源", { resourceId }),
+    listQuickLocations: () =>
+      read<QuickLocation[]>("list_quick_locations"),
+    createQuickLocation: (request: CreateQuickLocationRequest) =>
+      mutate<QuickLocation>("create_quick_location", "绑定快捷目录", {
+        request,
+      }),
+    updateQuickLocation: (request: UpdateQuickLocationRequest) =>
+      mutate<QuickLocation>("update_quick_location", "更新快捷目录", {
+        request,
+      }),
+    reorderQuickLocations: (ids: string[]) =>
+      mutate<void>("reorder_quick_locations", "调整快捷目录顺序", {
+        request: { ids },
+      }),
+    removeQuickLocation: (locationId: string) =>
+      mutate<void>("remove_quick_location", "移除快捷目录", {
+        locationId,
+      }),
+    openQuickLocation: (locationId: string) =>
+      mutate<void>("open_quick_location", "打开快捷目录", {
+        locationId,
+      }),
   };
 }
 

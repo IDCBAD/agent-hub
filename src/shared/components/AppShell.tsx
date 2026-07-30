@@ -1,15 +1,17 @@
 import {
   FolderOpenIcon,
   GearSixIcon,
+  PushPinIcon,
   RobotIcon,
 } from "@phosphor-icons/react";
 import { copy } from "../i18n/zh-CN";
 
-export type AppSection = "agents" | "resources" | "settings";
+export type AppSection = "agents" | "locations" | "resources" | "settings";
 
 interface AppShellProps {
   section: AppSection;
   agentCount: number;
+  quickLocationCount: number;
   resourceCount: number;
   children: React.ReactNode;
   onSectionChange: (section: AppSection) => void;
@@ -17,6 +19,11 @@ interface AppShellProps {
 
 const navigation = [
   { id: "agents" as const, label: copy.nav.agents, icon: RobotIcon },
+  {
+    id: "locations" as const,
+    label: copy.nav.quickLocations,
+    icon: PushPinIcon,
+  },
   {
     id: "resources" as const,
     label: copy.nav.resources,
@@ -28,6 +35,7 @@ const navigation = [
 export function AppShell({
   section,
   agentCount,
+  quickLocationCount,
   resourceCount,
   children,
   onSectionChange,
@@ -46,7 +54,7 @@ export function AppShell({
         <aside className="sidebar" aria-label="主导航">
           <div className="sidebar-brand">
             <span className="eyebrow">LOCAL FIRST</span>
-            <p>本机 Agent 的只读资源地图</p>
+            <p>Agent 配置与常用目录的快捷入口</p>
           </div>
 
           <nav className="nav-list">
@@ -55,6 +63,8 @@ export function AppShell({
               const count =
                 item.id === "agents"
                   ? agentCount
+                  : item.id === "locations"
+                    ? quickLocationCount
                   : item.id === "resources"
                     ? resourceCount
                     : null;
@@ -78,7 +88,7 @@ export function AppShell({
 
           <div className="privacy-note">
             <strong>只读安全边界</strong>
-            <p>不修改原生配置，不上传本地文件，不保存认证正文。</p>
+            <p>只定位和打开目录，不修改原生配置，不上传本地文件。</p>
             <div className="local-status">
               <span aria-hidden="true" />
               本地服务

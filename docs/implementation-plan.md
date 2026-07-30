@@ -55,12 +55,12 @@ Agent Hub 是 Agent 的管理层，不是 Agent 的替代运行时。
 
 ```text
 启动 Agent Hub
-→ 自动扫描
-→ 查看发现的 Agent
-→ 选择一个 Agent
-→ 理解其安装、配置与资源结构
-→ 打开目标目录或资源
-→ 外部修改后重新扫描并看到状态更新
+→ 从 SQLite 缓存立即展示 Agent 目录
+→ 必要时手动扫描
+→ 打开 Agent 配置目录或已验证资源
+→ 将高频目录绑定为快捷目录
+→ 关闭主窗口并释放 WebView
+→ 后续从系统托盘直接打开目标目录
 ```
 
 如果这一闭环不能稳定工作，不进入 Prompt、Skill、MCP 的统一写入阶段。
@@ -69,12 +69,13 @@ Agent Hub 是 Agent 的管理层，不是 Agent 的替代运行时。
 
 ## 2. 核心领域模型
 
-### 2.1 五层抽象
+### 2.1 六层抽象
 
 | 概念 | 示例 | 生命周期 |
 |---|---|---|
 | Agent Type | Claude Code | 随 Adapter 发布 |
 | Agent Instance | 本机 `~/.claude` 实例 | 发现或手动添加 |
+| Quick Location | 用户置顶的 Prompt 或项目目录 | 用户绑定和排序 |
 | Agent Profile | 工作配置、个人配置 | Phase 3 |
 | Resource | `settings.json`、Skill 目录 | 扫描与文件变化 |
 | Workspace | 本地代码项目 | 用户添加或历史发现 |
@@ -110,18 +111,19 @@ Typed IPC Client
 Tauri Commands
         │
 Application Services
-   ┌────┴─────────┐
-Domain Model   Adapter Registry
-   │                │
-SQLite         Agent Adapters
-                    │
-          Filesystem / Process / OS
+   ┌────┴──────────────┐
+Domain Model      Adapter Registry
+   │                       │
+SQLite              Agent Adapters
+   │                       │
+Native Tray ───── Filesystem / Process / OS
 ```
 
 ### 3.1 前端职责
 
 - Agent 列表、搜索、筛选和选中状态
 - 资源清单、发现依据和错误展示
+- 快捷目录绑定、命名、排序和托盘显示设置
 - 发起扫描、打开目录、打开资源等用例
 - 编辑名称、标签和备注
 - 对高风险操作展示预览和确认
@@ -137,6 +139,7 @@ SQLite         Agent Adapters
 - 路径规范化、权限检查和符号链接处理
 - SQLite 事务与 migration
 - 系统文件管理器和编辑器集成
+- 原生托盘菜单、单实例与 WebView 按需生命周期
 - 敏感信息识别和脱敏
 
 ### 3.3 Adapter 接口
@@ -314,7 +317,21 @@ Domain 不依赖 Tauri、SQLite 或某个具体 Agent。
 
 Key-value 仅用于非敏感设备设置。密钥和 Token 不进入该表。
 
-### 5.9 数据库规则
+### 5.9 `quick_locations`
+
+| 字段 | 说明 |
+|---|---|
+| id | UUID |
+| display_name | 用户定义的托盘显示名称 |
+| path / normalized_path | 展示路径与唯一比较路径 |
+| show_in_tray | 是否显示在原生托盘菜单 |
+| sort_order | 用户顺序 |
+| last_opened_at | 最近通过 Hub 打开的时间 |
+| created_at / updated_at | 本地管理时间 |
+
+快捷目录独立于 Agent Instance，不参与 Adapter 发现。移除记录只删除 SQLite 中的绑定，禁止删除原始目录。
+
+### 5.10 数据库规则
 
 - 使用 `rusqlite` bundled
 - 开启 foreign keys
@@ -727,7 +744,7 @@ external-change
 - 当前工作目录
 - Session 索引
 - 文件系统 watcher
-- 系统托盘
+- 托盘通知与可选开机启动（基础目录菜单已在 v0.2.0 实现）
 
 ### Phase 5：Workflow
 

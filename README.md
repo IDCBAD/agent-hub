@@ -1,8 +1,8 @@
 # Agent Hub
 
-Agent Hub 是一个本地优先的 AI Agent 桌面管理入口。它不会替代 Claude Code、Codex、Hermes Agent 或 Kimi Code，而是发现本机实例、建立只读资源索引，并把分散的配置、Prompt、Skill、MCP 与身份文件整理为可解释、可导航的资源地图。
+Agent Hub 是一个本地优先的 Agent 配置目录快捷入口。它不会替代 Claude Code、Codex、Hermes Agent 或 Kimi Code，而是帮助用户定位这些工具的本地配置，并通过低占用的系统托盘快速打开 Agent 目录和日常使用的任意目录。
 
-当前仓库已包含可运行的 MVP：
+当前仓库已包含：
 
 - Tauri 2 + React 19 + TypeScript + Vite
 - Rust 分层后端与窄 IPC 命令
@@ -14,6 +14,11 @@ Agent Hub 是一个本地优先的 AI Agent 桌面管理入口。它不会替代
 - 白名单 Resource 扫描、敏感标记与跨 Agent 索引
 - 打开 Agent 目录与已验证资源
 - 手动添加 Agent 配置路径
+- 绑定、重命名、排序和移除常用快捷目录
+- 从系统托盘直接打开 Agent 与快捷目录
+- 关闭主窗口后销毁 WebView2，保留轻量 Rust 托盘进程
+- 单实例恢复主窗口，避免重复后台进程
+- 启动时优先读取缓存，仅在用户操作时扫描
 - 加载、空状态、错误和恢复动作
 
 ## 安全边界
@@ -25,6 +30,16 @@ MVP 是只读管理层：
 - 不把配置正文、API Key、Token 或认证文件内容写入 SQLite。
 - 不向前端暴露任意文件读取、任意文件写入或任意命令执行接口。
 - 打开操作只接收数据库 ID，由 Rust 查询并再次验证目标路径属于已确认的 Agent 根目录。
+- 快捷目录只保存用户授权的目录路径；从 Hub 移除不会删除原始目录或文件。
+
+## 日常使用
+
+- 左键单击托盘图标：打开或恢复 Agent Hub 主窗口。
+- 右键单击托盘图标：快速打开 Agent 目录、快捷目录，或手动重新扫描。
+- 关闭主窗口：释放 React 与 WebView2，Agent Hub 继续以托盘进程驻留。
+- 退出应用：使用托盘菜单中的“退出”。
+
+应用启动时不会自动执行 CLI 版本探测。Agent 和 Resource 数据会立即从 SQLite 缓存加载，需要刷新时使用“扫描本机”或托盘中的“重新扫描 Agent”。
 
 ## 开发环境
 
@@ -114,12 +129,15 @@ SQLite v2                 Filesystem / PATH / OS
    │
    ├── Agent Runtime
    ├── Agent Configuration
-   └── Resource Index
+   ├── Resource Index
+   └── Quick Locations ──→ Native Tray Menu
 ```
 
 每个 Agent Instance 由三部分组成：Runtime 记录 CLI 是否安装、命令名、可执行文件、CLI 自报版本、解析来源和安装方式；Configuration 记录配置根、配置文件及 Resource；Health 由两者综合计算，不作为 Adapter 内的混合检测结果。
 
 手动添加路径作为独立的用户登记保存在 `manual_agent_locations`。从 Hub 移除手动 Agent 只删除本地索引和登记，不会删除 Agent 原始配置目录。
+
+快捷目录保存在 `quick_locations`，独立于 Agent Instance。托盘菜单由 Rust 直接读取 SQLite 并调用系统文件管理器，不依赖主窗口或 WebView。
 
 关键目录：
 

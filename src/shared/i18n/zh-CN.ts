@@ -8,9 +8,10 @@ import type {
 
 export const copy = {
   productName: "Agent Hub",
-  productCaption: "本地 Agent 控制中心",
+  productCaption: "Agent 配置目录快捷入口",
   nav: {
     agents: "Agent 管理",
+    quickLocations: "快捷目录",
     resources: "资源索引",
     settings: "设置",
   },
@@ -23,6 +24,7 @@ export const copy = {
     addManual: "手动添加",
     cancel: "取消",
     add: "添加 Agent",
+    save: "保存",
     remove: "从 Hub 移除",
     removing: "正在移除",
     retry: "重试",
@@ -95,6 +97,28 @@ export const copy = {
     emptyTitle: "还没有可索引的资源",
     emptyBody: "先扫描 Agent，资源会按已知规则安全地加入索引。",
   },
+  quickLocations: {
+    title: "快捷目录",
+    subtitle: "绑定日常使用的目录，并通过系统托盘快速打开。",
+    add: "绑定目录",
+    bind: "完成绑定",
+    addTitle: "绑定快捷目录",
+    editTitle: "编辑快捷目录",
+    dialogBody: "Agent Hub 只保存目录路径，不读取或修改其中的内容。",
+    nameLabel: "显示名称",
+    nameRequired: "请输入显示名称。",
+    pathLabel: "目录路径",
+    showInTray: "显示在系统托盘",
+    showInTrayHint: "右键 Agent Hub 图标时可直接打开这个目录。",
+    trayTitle: "后台常驻，随时打开",
+    trayBody:
+      "关闭主窗口后 WebView 会被释放，Agent Hub 只保留轻量的 Rust 托盘进程。",
+    trayShort: "托盘显示",
+    emptyTitle: "还没有绑定快捷目录",
+    emptyBody: "添加 Prompt、配置或项目目录，以后无需再逐层查找。",
+    neverOpened: "尚未通过 Agent Hub 打开",
+    lastOpened: (time: string) => `最近打开 ${time}`,
+  },
   settings: {
     title: "设置",
     subtitle: "MVP 使用本地优先、只读的安全边界。",
@@ -103,10 +127,13 @@ export const copy = {
       "SQLite 仅保存 Agent 身份、路径、哈希与发现结果，不保存配置正文、密钥或 Token。",
     scanTitle: "扫描策略",
     scanBody:
-      "只检查默认目录、环境变量、PATH 与手动授权路径，不递归扫描整个用户目录。",
+      "启动时优先读取本地缓存，不自动执行 CLI 探测；需要时可手动扫描。",
     openTitle: "打开策略",
     openBody:
       "打开操作仅接受数据库资源 ID，并在 Rust 层再次验证路径。",
+    trayTitle: "后台驻留",
+    trayBody:
+      "关闭主窗口会释放 WebView2；左键托盘图标重新打开，右键快速访问目录或退出。",
   },
   manual: {
     title: "手动添加 Agent",

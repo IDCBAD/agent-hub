@@ -2,10 +2,16 @@ import {
   DatabaseIcon,
   FolderOpenIcon,
   MagnifyingGlassIcon,
+  PushPinIcon,
 } from "@phosphor-icons/react";
 import { copy } from "../../shared/i18n/zh-CN";
 
 const items = [
+  {
+    icon: PushPinIcon,
+    title: copy.settings.trayTitle,
+    body: copy.settings.trayBody,
+  },
   {
     icon: DatabaseIcon,
     title: copy.settings.dataTitle,

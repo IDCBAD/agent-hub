@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Agent Hub",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "identifier": "io.agenthub.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -37,8 +37,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "shortDescription": "本地优先的 AI Agent 管理中心",
-    "longDescription": "发现并管理本机 Claude Code、Codex、Hermes Agent 与 Kimi Code 的命令行程序、配置和只读资源索引。",
+    "shortDescription": "Agent 配置目录与常用目录的快捷入口",
+    "longDescription": "发现本机 Claude Code、Codex、Hermes Agent 与 Kimi Code 的配置目录，并通过轻量系统托盘快速打开 Agent 配置和用户绑定的常用目录。",
     "windows": {
       "nsis": {
         "installMode": "currentUser",
