@@ -13,6 +13,9 @@ use sha2::{Digest, Sha256};
 use wait_timeout::ChildExt;
 use walkdir::WalkDir;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use crate::{
     domain::{
         agent::{AgentDraft, AgentTypeDescriptor, Confidence},
@@ -32,6 +35,8 @@ use super::AgentAdapter;
 const MAX_HASH_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_DIRECTORY_ENTRIES: usize = 250;
 const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(20);
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Debug)]
 struct VersionProbeResult {
@@ -748,6 +753,8 @@ fn detect_version(executable: &Path) -> VersionProbeResult {
 fn version_command(executable: &Path) -> Command {
     let mut command = Command::new(executable);
     command.arg("--version");
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
     command
 }
 
