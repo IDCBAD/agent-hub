@@ -41,7 +41,9 @@
     "longDescription": "发现并管理本机 Claude Code、Codex、Hermes Agent 与 Kimi Code 的命令行程序、配置和只读资源索引。",
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
       }
     }
   }
