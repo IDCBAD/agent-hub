@@ -121,19 +121,32 @@ export const copy = {
   },
   settings: {
     title: "设置",
-    subtitle: "MVP 使用本地优先、只读的安全边界。",
+    subtitle: "只保留与启动、后台驻留和本地数据有关的必要选项。",
+    saving: "正在保存…",
+    generalTitle: "常规",
+    generalBody: "这些选项只影响 Agent Hub 自身，不会修改任何 Agent 配置。",
+    launchTitle: "开机后自动启动 Agent Hub",
+    launchBody: "以后台模式启动，仅创建托盘，不加载 WebView 主界面。",
+    trayTitle: "关闭窗口后继续在托盘运行",
+    trayBody: "关闭主窗口会释放 WebView2；可从托盘再次打开或彻底退出。",
+    scanTitle: "启动后自动扫描 Agent",
+    scanBody: "启动约 3 秒后在后台刷新 Agent 和资源索引，默认关闭以减少开销。",
     dataTitle: "本地数据",
     dataBody:
       "SQLite 仅保存 Agent 身份、路径、哈希与发现结果，不保存配置正文、密钥或 Token。",
-    scanTitle: "扫描策略",
-    scanBody:
-      "启动时优先读取本地缓存，不自动执行 CLI 探测；需要时可手动扫描。",
-    openTitle: "打开策略",
-    openBody:
-      "打开操作仅接受数据库资源 ID，并在 Rust 层再次验证路径。",
-    trayTitle: "后台驻留",
-    trayBody:
-      "关闭主窗口会释放 WebView2；左键托盘图标重新打开，右键快速访问目录或退出。",
+    dataDirectoryTitle: "Agent Hub 数据目录",
+    openDirectory: "打开目录",
+    indexTitle: "Agent 扫描索引",
+    indexBody: "清理并重新生成运行时、配置和资源缓存，不删除手动路径、快捷目录或原文件。",
+    rebuild: "重建索引",
+    rebuilding: "正在重建",
+    rebuildConfirm:
+      "确定重建 Agent 扫描索引吗？扫描缓存会被清理后重新生成；手动路径、快捷目录、设置和本地文件不会被删除。",
+    aboutTitle: "关于",
+    versionLabel: "Agent Hub 版本",
+    schemaLabel: "本地数据库",
+    projectPage: "项目主页",
+    releasesPage: "发布版本",
   },
   manual: {
     title: "手动添加 Agent",

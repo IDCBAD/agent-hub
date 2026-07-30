@@ -151,6 +151,18 @@ export interface UpdateQuickLocationRequest {
   showInTray: boolean;
 }
 
+export interface AppSettings {
+  launchAtLogin: boolean;
+  keepRunningInTray: boolean;
+  scanOnLaunch: boolean;
+}
+
+export interface AppInfo {
+  version: string;
+  schemaVersion: number;
+  dataDirectory: string;
+}
+
 export interface AppErrorShape {
   code: string;
   message: string;

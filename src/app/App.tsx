@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { agentHubApi } from "../shared/api/client";
 import type {
+  AppSettings,
   CreateQuickLocationRequest,
   HealthStatus,
   ManualLocationRequest,
@@ -51,6 +52,17 @@ export function App() {
   const quickLocationsQuery = useQuery({
     queryKey: ["quick-locations"],
     queryFn: () => agentHubApi.listQuickLocations(),
+  });
+  const settingsQuery = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: () => agentHubApi.getAppSettings(),
+    enabled: section === "settings",
+  });
+  const appInfoQuery = useQuery({
+    queryKey: ["app-info"],
+    queryFn: () => agentHubApi.getAppInfo(),
+    enabled: section === "settings",
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const scanMutation = useMutation({
@@ -247,6 +259,37 @@ export function App() {
     onError: setOperationError,
   });
 
+  const updateSettingsMutation = useMutation({
+    mutationFn: (settings: AppSettings) =>
+      agentHubApi.updateAppSettings(settings),
+    onSuccess: (settings) => {
+      setOperationError(null);
+      queryClient.setQueryData(["app-settings"], settings);
+    },
+    onError: setOperationError,
+  });
+
+  const rebuildIndexMutation = useMutation({
+    mutationFn: () => agentHubApi.rebuildAgentIndex(),
+    onSuccess: async () => {
+      setSelectedId(null);
+      setOperationError(null);
+      await refreshData();
+    },
+    onError: setOperationError,
+  });
+
+  const settingsActionMutation = useMutation({
+    mutationFn: (action: "data" | "project" | "releases") =>
+      action === "data"
+        ? agentHubApi.openAppDataDirectory()
+        : action === "project"
+          ? agentHubApi.openProjectPage()
+          : agentHubApi.openReleasesPage(),
+    onSuccess: () => setOperationError(null),
+    onError: setOperationError,
+  });
+
   const chooseQuickLocation = async () => {
     try {
       const selected = await openDialog({
@@ -268,7 +311,9 @@ export function App() {
     overviewQuery.error ||
     agentResourcesQuery.error ||
     evidenceQuery.error ||
-    quickLocationsQuery.error;
+    quickLocationsQuery.error ||
+    settingsQuery.error ||
+    appInfoQuery.error;
 
   return (
     <AppShell
@@ -413,7 +458,20 @@ export function App() {
         />
       )}
 
-      {section === "settings" && <SettingsPage />}
+      {section === "settings" && (
+        <SettingsPage
+          settings={settingsQuery.data}
+          info={appInfoQuery.data}
+          isLoading={settingsQuery.isLoading || appInfoQuery.isLoading}
+          isSaving={updateSettingsMutation.isPending}
+          isRebuilding={rebuildIndexMutation.isPending}
+          onChange={(settings) => updateSettingsMutation.mutate(settings)}
+          onOpenDataDirectory={() => settingsActionMutation.mutate("data")}
+          onRebuildIndex={() => rebuildIndexMutation.mutate()}
+          onOpenProjectPage={() => settingsActionMutation.mutate("project")}
+          onOpenReleasesPage={() => settingsActionMutation.mutate("releases")}
+        />
+      )}
 
       <ManualAgentDialog
         open={manualOpen}

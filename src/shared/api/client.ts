@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AgentFilter,
+  AppInfo,
+  AppSettings,
   AgentOverview,
   AgentSummary,
   DiscoveryEvidence,
@@ -89,6 +91,32 @@ export function createAgentHubApi(call: Invoke = desktopInvoke) {
       mutate<void>("open_quick_location", "打开快捷目录", {
         locationId,
       }),
+    getAppSettings: () =>
+      isDesktop()
+        ? call<AppSettings>("get_app_settings")
+        : Promise.resolve({
+            launchAtLogin: false,
+            keepRunningInTray: true,
+            scanOnLaunch: false,
+          }),
+    updateAppSettings: (settings: AppSettings) =>
+      mutate<AppSettings>("update_app_settings", "更新应用设置", { settings }),
+    getAppInfo: () =>
+      isDesktop()
+        ? call<AppInfo>("get_app_info")
+        : Promise.resolve({
+            version: "0.2.1",
+            schemaVersion: 6,
+            dataDirectory: "仅桌面应用可用",
+          }),
+    openAppDataDirectory: () =>
+      mutate<void>("open_app_data_directory", "打开应用数据目录"),
+    rebuildAgentIndex: () =>
+      mutate<DiscoveryResult>("rebuild_agent_index", "重建 Agent 扫描索引"),
+    openProjectPage: () =>
+      mutate<void>("open_project_page", "打开项目主页"),
+    openReleasesPage: () =>
+      mutate<void>("open_releases_page", "打开发布版本页面"),
   };
 }
 

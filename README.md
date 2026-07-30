@@ -18,7 +18,8 @@ Agent Hub 是一个本地优先的 Agent 配置目录快捷入口。它不会替
 - 从系统托盘直接打开 Agent 与快捷目录
 - 关闭主窗口后销毁 WebView2，保留轻量 Rust 托盘进程
 - 单实例恢复主窗口，避免重复后台进程
-- 启动时优先读取缓存，仅在用户操作时扫描
+- 可选开机后台启动、关闭窗口托盘驻留和延迟自动扫描
+- 打开本地数据目录，并可安全重建 Agent 扫描索引
 - 加载、空状态、错误和恢复动作
 
 ## 安全边界
@@ -39,7 +40,7 @@ MVP 是只读管理层：
 - 关闭主窗口：释放 React 与 WebView2，Agent Hub 继续以托盘进程驻留。
 - 退出应用：使用托盘菜单中的“退出”。
 
-应用启动时不会自动执行 CLI 版本探测。Agent 和 Resource 数据会立即从 SQLite 缓存加载，需要刷新时使用“扫描本机”或托盘中的“重新扫描 Agent”。
+默认启动时不会自动执行 CLI 版本探测。Agent 和 Resource 数据会立即从 SQLite 缓存加载，需要刷新时使用“扫描本机”或托盘中的“重新扫描 Agent”；也可以在设置中启用延迟后台扫描。
 
 ## 开发环境
 
@@ -125,12 +126,13 @@ Domain Model   Adapter Registry
    │                 ├── Runtime Detection
    │                 └── Configuration Detection
    │                            │
-SQLite v2                 Filesystem / PATH / OS
+SQLite v6                 Filesystem / PATH / OS
    │
    ├── Agent Runtime
    ├── Agent Configuration
    ├── Resource Index
-   └── Quick Locations ──→ Native Tray Menu
+   ├── Quick Locations ──→ Native Tray Menu
+   └── App Settings ─────→ Startup / Tray Policy
 ```
 
 每个 Agent Instance 由三部分组成：Runtime 记录 CLI 是否安装、命令名、可执行文件、CLI 自报版本、解析来源和安装方式；Configuration 记录配置根、配置文件及 Resource；Health 由两者综合计算，不作为 Adapter 内的混合检测结果。

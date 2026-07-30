@@ -6,22 +6,33 @@ mod domain;
 mod error;
 mod infrastructure;
 
-use std::io;
+use std::{
+    io,
+    sync::{atomic::AtomicBool, Arc},
+};
 
 use adapters::AdapterRegistry;
 use application::ApplicationService;
 use commands::AppState;
-use infrastructure::{database::Database, webview_memory};
+use infrastructure::database::Database;
 use tauri::{Manager, RunEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Err(error) = desktop::show_main_window(app) {
-                eprintln!("failed to restore Agent Hub window: {error}");
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if !args.iter().any(|argument| argument == "--background") {
+                if let Err(error) = desktop::show_main_window(app) {
+                    eprintln!("failed to restore Agent Hub window: {error}");
+                }
             }
         }))
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .arg("--background")
+                .app_name("Agent Hub")
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let data_directory = app.path().app_data_dir()?;
@@ -29,10 +40,20 @@ pub fn run() {
                 .map_err(|error| io::Error::other(error.to_string()))?;
             let service = ApplicationService::new(database, AdapterRegistry::standard())
                 .map_err(|error| io::Error::other(error.to_string()))?;
-            app.manage(AppState { service });
+            let settings = service
+                .get_app_settings()
+                .map_err(|error| io::Error::other(error.to_string()))?;
+            app.manage(AppState {
+                service: service.clone(),
+                keep_running_in_tray: Arc::new(AtomicBool::new(settings.keep_running_in_tray)),
+            });
             desktop::install(app.handle())?;
-            if let Some(main_window) = app.get_webview_window("main") {
-                webview_memory::install(main_window);
+            let background = std::env::args().any(|argument| argument == "--background");
+            if !background {
+                desktop::show_main_window(app.handle())?;
+            }
+            if settings.scan_on_launch {
+                desktop::schedule_startup_scan(app.handle().clone(), service);
             }
             Ok(())
         })
@@ -54,13 +75,25 @@ pub fn run() {
             commands::reorder_quick_locations,
             commands::remove_quick_location,
             commands::open_quick_location,
+            commands::get_app_settings,
+            commands::update_app_settings,
+            commands::get_app_info,
+            commands::open_app_data_directory,
+            commands::rebuild_agent_index,
+            commands::open_project_page,
+            commands::open_releases_page,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Agent Hub");
 
-    app.run(|_app, event| {
+    app.run(|app, event| {
         if let RunEvent::ExitRequested { api, code, .. } = event {
-            if code.is_none() {
+            if code.is_none()
+                && app
+                    .state::<AppState>()
+                    .keep_running_in_tray
+                    .load(std::sync::atomic::Ordering::Relaxed)
+            {
                 api.prevent_exit();
             }
         }

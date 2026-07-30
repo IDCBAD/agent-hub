@@ -13,12 +13,14 @@ use crate::{
             UpdateQuickLocationRequest,
         },
         resource::{Resource, ResourceFilter},
+        settings::{AppInfo, AppSettings},
     },
     error::AppError,
     infrastructure::{
         database::Database,
         platform::{
-            canonical_directory, open_agent_directory, open_quick_directory, open_resource,
+            canonical_directory, open_agent_directory, open_data_directory, open_external_url,
+            open_quick_directory, open_resource,
         },
     },
 };
@@ -191,6 +193,46 @@ impl ApplicationService {
         let path = self.database.get_quick_location_path(id)?;
         open_quick_directory(&path)?;
         self.database.mark_quick_location_opened(id)
+    }
+
+    pub fn get_app_settings(&self) -> Result<AppSettings, AppError> {
+        self.database.get_app_settings()
+    }
+
+    pub fn save_app_settings(&self, settings: &AppSettings) -> Result<(), AppError> {
+        self.database.save_app_settings(settings)
+    }
+
+    pub fn get_app_info(&self) -> AppInfo {
+        AppInfo {
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            schema_version: self.database.schema_version(),
+            data_directory: self
+                .database
+                .data_directory()
+                .to_string_lossy()
+                .into_owned(),
+        }
+    }
+
+    pub fn open_app_data_directory(&self) -> Result<(), AppError> {
+        open_data_directory(&self.database.data_directory())
+    }
+
+    pub fn rebuild_agent_index(&self) -> Result<DiscoveryResult, AppError> {
+        self.database.clear_agent_index()?;
+        self.discover_agents()
+    }
+
+    pub fn open_project_page(&self) -> Result<(), AppError> {
+        open_external_url("https://github.com/IDCBAD/agent-hub", "项目主页")
+    }
+
+    pub fn open_releases_page(&self) -> Result<(), AppError> {
+        open_external_url(
+            "https://github.com/IDCBAD/agent-hub/releases",
+            "发布版本页面",
+        )
     }
 }
 
@@ -388,5 +430,83 @@ mod tests {
             })
             .expect_err("empty name");
         assert_eq!(error.code, "invalid_name");
+    }
+
+    #[test]
+    fn settings_are_persisted_with_safe_defaults() {
+        let (directory, service) = service();
+        assert_eq!(
+            service.get_app_settings().expect("default settings"),
+            AppSettings::default()
+        );
+
+        let expected = AppSettings {
+            launch_at_login: true,
+            keep_running_in_tray: false,
+            scan_on_launch: true,
+        };
+        service.save_app_settings(&expected).expect("save settings");
+        drop(service);
+
+        let database =
+            Database::initialize(directory.path().join("agent-hub.db")).expect("reopen database");
+        let reopened =
+            ApplicationService::new(database, AdapterRegistry::standard()).expect("reopen service");
+        assert_eq!(
+            reopened.get_app_settings().expect("stored settings"),
+            expected
+        );
+    }
+
+    #[test]
+    fn clearing_agent_index_preserves_user_data_and_original_files() {
+        let (directory, service) = service();
+        let config_root = directory.path().join(".codex");
+        let quick_root = directory.path().join("daily-prompts");
+        fs::create_dir_all(&config_root).expect("config directory");
+        fs::create_dir_all(&quick_root).expect("quick directory");
+        fs::write(config_root.join("config.toml"), "model = \"local\"").expect("config");
+
+        service
+            .add_manual_location(ManualLocationRequest {
+                agent_type_id: "codex".to_owned(),
+                path: config_root.to_string_lossy().into_owned(),
+            })
+            .expect("manual Agent");
+        service
+            .create_quick_location(CreateQuickLocationRequest {
+                name: "Daily Prompts".to_owned(),
+                path: quick_root.to_string_lossy().into_owned(),
+                show_in_tray: true,
+            })
+            .expect("quick location");
+        let settings = AppSettings {
+            scan_on_launch: true,
+            ..AppSettings::default()
+        };
+        service.save_app_settings(&settings).expect("save settings");
+
+        service.database.clear_agent_index().expect("clear index");
+
+        assert!(service.list_agents(None).expect("agents").is_empty());
+        assert!(service.list_resources(None).expect("resources").is_empty());
+        assert_eq!(
+            service
+                .database
+                .list_manual_locations()
+                .expect("manual locations")
+                .len(),
+            1
+        );
+        assert_eq!(
+            service
+                .list_quick_locations()
+                .expect("quick locations")
+                .len(),
+            1
+        );
+        assert_eq!(service.get_app_settings().expect("settings"), settings);
+        assert!(config_root.join("config.toml").exists());
+        assert!(quick_root.exists());
     }
 }

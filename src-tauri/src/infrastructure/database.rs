@@ -21,6 +21,7 @@ use crate::{
         runtime::{
             RuntimeDistribution, RuntimeResolutionSource, RuntimeSummary, VersionProbeStatus,
         },
+        settings::AppSettings,
     },
     error::AppError,
 };
@@ -1100,6 +1101,59 @@ impl Database {
             params![id, now_seconds()],
         )?;
         Ok(())
+    }
+
+    pub fn get_app_settings(&self) -> Result<AppSettings, AppError> {
+        let connection = self.open()?;
+        let value = connection
+            .query_row(
+                "SELECT value_json FROM app_settings WHERE key = 'preferences'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        match value {
+            Some(value) => serde_json::from_str(&value)
+                .map_err(|error| AppError::internal(format!("应用设置无法解析：{error}"))),
+            None => Ok(AppSettings::default()),
+        }
+    }
+
+    pub fn save_app_settings(&self, settings: &AppSettings) -> Result<(), AppError> {
+        let value = serde_json::to_string(settings)
+            .map_err(|error| AppError::internal(format!("应用设置无法序列化：{error}")))?;
+        let connection = self.open()?;
+        connection.execute(
+            r#"
+            INSERT INTO app_settings (key, value_json, updated_at)
+            VALUES ('preferences', ?1, ?2)
+            ON CONFLICT(key) DO UPDATE SET
+                value_json = excluded.value_json,
+                updated_at = excluded.updated_at
+            "#,
+            params![value, now_seconds()],
+        )?;
+        Ok(())
+    }
+
+    pub fn clear_agent_index(&self) -> Result<(), AppError> {
+        let mut connection = self.open()?;
+        let transaction = connection.transaction()?;
+        transaction.execute("DELETE FROM agent_instances", [])?;
+        transaction.execute("DELETE FROM discovery_runs", [])?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn schema_version(&self) -> i64 {
+        SCHEMA_VERSION
+    }
+
+    pub fn data_directory(&self) -> PathBuf {
+        self.path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default()
     }
 
     fn get_quick_location(&self, id: &str) -> Result<QuickLocation, AppError> {

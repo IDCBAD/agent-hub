@@ -12,6 +12,22 @@ pub fn open_quick_directory(path: &Path) -> Result<(), AppError> {
     open_directory(&verified, "快捷目录")
 }
 
+pub fn open_data_directory(path: &Path) -> Result<(), AppError> {
+    let verified = verify_directory(path, "Agent Hub 数据路径不是目录。")?;
+    open_directory(&verified, "Agent Hub 数据目录")
+}
+
+pub fn open_external_url(url: &str, label: &str) -> Result<(), AppError> {
+    open::that_detached(url).map_err(|error| {
+        AppError::new(
+            "open_failed",
+            format!("系统无法打开{label}：{error}"),
+            true,
+            Some("请检查系统默认浏览器设置。"),
+        )
+    })
+}
+
 pub fn canonical_directory(path: &Path) -> Result<PathBuf, AppError> {
     verify_directory(path, "选择的路径不是目录。")
 }

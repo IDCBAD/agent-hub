@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::{thread, time::Duration};
 
 use tauri::{
     menu::{Menu, MenuBuilder, MenuItem, SubmenuBuilder},
@@ -59,6 +60,19 @@ pub fn emit_data_changed(app: &AppHandle) {
     if let Err(error) = app.emit(DATA_CHANGED_EVENT, ()) {
         eprintln!("failed to notify Agent Hub window: {error}");
     }
+}
+
+pub fn schedule_startup_scan(app: AppHandle, service: crate::application::ApplicationService) {
+    tauri::async_runtime::spawn_blocking(move || {
+        thread::sleep(Duration::from_secs(3));
+        match service.discover_agents() {
+            Ok(_) => {
+                refresh_tray_menu(&app);
+                emit_data_changed(&app);
+            }
+            Err(error) => eprintln!("startup Agent scan failed: {error}"),
+        }
+    });
 }
 
 pub fn show_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
